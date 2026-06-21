@@ -1,0 +1,64 @@
+### Misc ###
+.kotlin/
+.nopublish/
+.externalToolBuilders/
+hs_err_pid*
+libs/
+run/
+logs/
+
+### Gradle ###
+.gradle/
+.gradle-user-home/
+!gradle/wrapper/gradle-wrapper.jar
+!**/src/main/**/build/
+!**/src/test/**/build/
+!**/src/main/**/out/
+!**/src/test/**/out/
+
+### IntelliJ IDEA ###
+.idea/
+.idea_modules/
+classes/
+out/
+build/
+!.idea/icon.png
+*.iws
+*.iml
+*.ipr
+
+### Spotless ###
+spotless/
+
+### Java ###
+*.class
+
+### Eclipse ###
+.apt_generated
+.classpath
+.factorypath
+.project
+.settings
+.springBeans
+.sts4-cache
+bin/
+!**/src/main/**/bin/
+!**/src/test/**/bin/
+*.launch
+
+### NetBeans ###
+/nbproject/private/
+/nbbuild/
+/dist/
+/nbdist/
+/.nb-gradle/
+
+### VS Code ###
+.vscode/
+
+### Windows ###
+thumbs.db
+*.db
+
+### Mac OS ###
+.DS_Store
