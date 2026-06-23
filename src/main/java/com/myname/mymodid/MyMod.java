@@ -1,5 +1,6 @@
 package com.myname.mymodid;
 
+import com.google.common.math.IntMath;
 import net.minecraft.block.Block;
 import net.minecraft.item.Item;
 import net.minecraft.item.crafting.IRecipe;
@@ -26,6 +27,7 @@ public class MyMod {
         var x = new Result.Ok<>(event);
         LOGGER.info(x.mapOr("fail", FMLEvent::description));
         TreePSet.of(1,2,3);
+        IO.println(IntMath.binomial(6, 2));
     }
 
     @SubscribeEvent
