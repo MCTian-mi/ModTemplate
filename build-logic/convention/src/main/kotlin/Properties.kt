@@ -1,0 +1,60 @@
+import internal.getter
+import org.gradle.api.Project
+
+val Project.modName: String by getter
+val Project.modId: String by getter
+val Project.modGroup: String by getter
+val Project.modVersion: String by getter
+val Project.archiveName: String by getter
+val Project.versionDisplayFormat: String by getter
+
+val Project.minecraftVersion: String by getter
+val Project.devUserName: String by getter
+
+val Project.extJavaArgs: String by getter
+val Project.enableJvmdg: Boolean by getter
+val Project.useLwjgl3ify: Boolean by getter
+
+val Project.generateTags: Boolean by getter
+
+val Project.atFile: String by getter
+val Project.useMixin: Boolean by getter
+val Project.mixinProviderSpec: String by getter
+val Project.mixinPackage: String by getter
+val Project.mixinConfigRefmap: String by getter
+val Project.generateMixinConfig: Boolean by getter
+val Project.forceEnableMixins: Boolean by getter
+val Project.coreModClass: String by getter
+val Project.enableCoreModDebug: Boolean by getter
+
+val Project.stripForgeRequirements: Boolean by getter
+
+val Project.useShadowDeps: Boolean by getter
+val Project.minimizeShadowedDependencies: Boolean by getter
+val Project.relocateShadowedDependencies: Boolean by getter
+
+val Project.separateRunDirectories: Boolean by getter
+
+val Project.modrinthProjectId: String by getter
+val Project.modrinthRelations: String by getter
+val Project.curseForgeProjectId: String by getter
+val Project.curseForgeRelations: String by getter
+val Project.releaseType: String by getter
+
+val Project.generateChangelog: Boolean by getter
+
+val Project.customMavenPublishUrl: String by getter
+val Project.mavenArtifactGroup: String by getter
+
+val Project.enableSpotless: Boolean by getter
+val Project.enableJUnit: Boolean by getter
+
+val Project.jvmdgShadowPath: String by getter
+
+val Project.deploymentDebug: Boolean by getter
+
+val Project.modPath: String
+    get() = modGroup.replace('.', '/')
+
+val Project.defaultShadowPath: String
+    get() = "${modPath}/shadow"

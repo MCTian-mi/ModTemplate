@@ -1,5 +1,13 @@
 rootProject.name = "MyMod"
 
+dependencyResolutionManagement {
+    versionCatalogs {
+        create("deps") {
+            from(files("./gradle/deps.versions.toml"))
+        }
+    }
+}
+
 pluginManagement {
     repositories {
         maven {
@@ -21,3 +29,5 @@ plugins {
     // Automatic toolchain provisioning
     id("org.gradle.toolchains.foojay-resolver-convention") version "0.7.0"
 }
+
+includeBuild("build-logic")
