@@ -3,7 +3,7 @@ plugins {
     alias(libs.plugins.shadow)
 }
 
-val Project.shadowImplementation: Configuration by configurations.creating
+val shadowImplementation: Configuration by configurations.creating
 
 configurations.implementation {
     extendsFrom(shadowImplementation)
@@ -12,11 +12,17 @@ configurations.implementation {
 tasks.shadowJar {
     archiveClassifier = "shadowed"
 
+    dependencies {
+        // TODO)) move to a version catalog?
+        exclude(dependency("org.jspecify:jspecify:.*"))
+        exclude(dependency("org.jetbrains:annotations:.*"))
+    }
+
     configurations = listOf(
-//        embedOnly,
+        // embedOnly,
         shadowImplementation,
-//        shadowDowngrade,
     )
+    if (enableJvmdg) configurations.add(project.configurations.named("shadowDowngrade"))
 
     if (minimizeShadowedDependencies) minimize()
     if (relocateShadowedDependencies) {

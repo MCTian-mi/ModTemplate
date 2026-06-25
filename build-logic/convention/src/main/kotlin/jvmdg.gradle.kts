@@ -9,7 +9,7 @@ plugins {
     alias(libs.plugins.retrofuturaGradle)
 }
 
-val Project.shadowDowngrade: Configuration by configurations.creating
+val shadowDowngrade: Configuration by configurations.creating
 
 configurations.compileOnly {
     extendsFrom(shadowDowngrade)

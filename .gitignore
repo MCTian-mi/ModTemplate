@@ -62,3 +62,6 @@ thumbs.db
 
 ### Mac OS ###
 .DS_Store
+
+### Agents ###
+.agents/

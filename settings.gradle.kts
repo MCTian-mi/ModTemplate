@@ -1,6 +1,7 @@
 rootProject.name = "MyMod"
 
 dependencyResolutionManagement {
+//    defaultLibrariesExtensionName = "buildDeps" TODO))
     versionCatalogs {
         create("deps") {
             from(files("./gradle/deps.versions.toml"))

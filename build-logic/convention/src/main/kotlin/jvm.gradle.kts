@@ -2,14 +2,20 @@ plugins {
     java
 }
 
-tasks.withType<JavaCompile>().configureEach {
-    options.encoding = "UTF-8"
+val utf8: String = Charsets.UTF_8.name()
+
+tasks.compileJava {
+    options.encoding = utf8
 }
 
-tasks.withType<Javadoc>().configureEach {
-    options.encoding = "UTF-8"
+tasks.javadoc {
+    isFailOnError = false
+    with(options as CoreJavadocOptions) {
+        quiet()
+        encoding = utf8
+        addStringOption("Xdoclint:none", "-quiet")
+    }
 }
-
 
 // Set the toolchain version to decouple the Java we run Gradle with from the Java used to compile and run the mod
 java {
