@@ -1,15 +1,5 @@
-rootProject.name = "MyMod"
-
-dependencyResolutionManagement {
-//    defaultLibrariesExtensionName = "buildDeps" TODO))
-    versionCatalogs {
-        create("deps") {
-            from(files("./gradle/deps.versions.toml"))
-        }
-    }
-}
-
 pluginManagement {
+    includeBuild("../build-logic")
     repositories {
         maven {
             // RetroFuturaGradle
@@ -26,10 +16,12 @@ pluginManagement {
     }
 }
 
-plugins {
-    // Automatic toolchain provisioning
-    id("org.gradle.toolchains.foojay-resolver-convention") version "0.7.0"
-}
+rootProject.name = "forgePatchesExtra"
 
-includeBuild("build-logic")
-includeBuild("forgePatchesExtra")
+dependencyResolutionManagement {
+    versionCatalogs {
+        create("rfbPatchLibs") {
+            from(files("./gradle/libs.versions.toml"))
+        }
+    }
+}

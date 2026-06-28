@@ -22,7 +22,6 @@ val Project.useMixin: Boolean by getter
 val Project.mixinPackage: String by getter
 val Project.mixinRefmap: String by getter
 val Project.generateMixinConfig: Boolean by getter
-val Project.forceEnableMixins: Boolean by getter
 val Project.coreModClass: String by getter
 val Project.enableCoreModDebug: Boolean by getter
 val Project.forceLoadedAsMod: Boolean by getter

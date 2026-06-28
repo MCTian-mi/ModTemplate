@@ -22,7 +22,9 @@ tasks.shadowJar {
         // embedOnly,
         shadowImplementation,
     )
-    if (enableJvmdg) configurations.add(project.configurations.named("shadowDowngrade"))
+    if (enableJvmdg) {
+        configurations.add(project.configurations.named("shadowDowngrade"))
+    }
 
     if (minimizeShadowedDependencies) minimize()
     if (relocateShadowedDependencies) {

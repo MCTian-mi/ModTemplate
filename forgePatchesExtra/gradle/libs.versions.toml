@@ -1,0 +1,9 @@
+[versions]
+lwjgl3ify = "1.0.1"
+annotations = "26.1.0"
+asm = "9.9.1"
+
+[libraries]
+lwjgl3ify = { module = "io.github.twilightflower:lwjgl3ify", version.ref = "lwjgl3ify" }
+annotations = { module = "org.jetbrains:annotations", version.ref = "annotations" }
+asm-tree = { module = "org.ow2.asm:asm-tree", version.ref = "asm" }

@@ -9,6 +9,13 @@ plugins {
 }
 
 dependencies {
+    compileOnlyApi(deps.jspecify)
+    compileOnlyApi(deps.annotations)
+    testImplementation(deps.assertj.core)
+
+    runtimeOnly(deps.hei)
+    runtimeOnly(deps.theOneProbe)
+
     shadowDowngrade(deps.guava)
     shadowDowngrade(deps.pcollections)
 }

@@ -59,6 +59,13 @@ tasks.withType<RunMinecraftTask>().configureEach {
     classpath = classpath - files(tasks.jar) + files(shadeRunDowngradedApi) + files(shadowDowngrade)
 }
 
+tasks.compileInjectedInterfacesJava {
+    javaCompiler = javaToolchains.compilerFor {
+        languageVersion.set(JavaLanguageVersion.of(8))
+        vendor.set(JvmVendorSpec.AZUL)
+    } // TODO)) should this be downgraded?
+}
+
 class ConstantShadePath(private val path: String) : (String) -> String, Serializable {
     override fun invoke(fileName: String): String = path
 }
