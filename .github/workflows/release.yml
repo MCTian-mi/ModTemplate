@@ -1,0 +1,83 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      release-type:
+        description: 'Release type'
+        type: choice
+        default: 'release'
+        options:
+          - 'release'
+          - 'beta'
+          - 'alpha'
+
+# Write changelog notes generated from the GitHub Release body into this file, so the Gradle
+# publish tasks pick them up via the CHANGELOG_LOCATION precedence rule.
+env:
+  CHANGELOG_LOCATION: build/gh_changelog.md
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v6
+        with:
+          # Full history + tags so the axion-release plugin can derive the version from git
+          # when 'modVersion' is left blank in gradle.properties.
+          fetch-depth: 0
+          fetch-tags: true
+
+      - name: Setup Build
+        uses: ./.github/actions/build_setup
+
+      - name: Determine release tag
+        id: tag
+        run: |
+          if [ "${{ github.ref_type }}" == "tag" ]; then
+            echo "tag=${{ github.ref_name }}" >> "$GITHUB_OUTPUT"
+          else
+            # workflow_dispatch: tag the current commit from the resolved Gradle version.
+            version=$(./gradlew -q printModVersion | tail -n 1)
+            echo "tag=v${version}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Build jars
+        run: ./gradlew build --build-cache
+
+      - name: Create or update GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG="${{ steps.tag.outputs.tag }}"
+          mkdir -p build
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo "Release $TAG already exists; reusing its notes."
+          else
+            gh release create "$TAG" \
+              --title "$TAG" \
+              --generate-notes \
+              --verify-tag
+          fi
+          # Persist the release notes so the publish tasks can attach them as the changelog.
+          gh release view "$TAG" --json body --jq '.body' > "$CHANGELOG_LOCATION" || echo "No changelog found" > "$CHANGELOG_LOCATION"
+
+      - name: Upload jars to GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh release upload "${{ steps.tag.outputs.tag }}" build/libs/*.jar --clobber
+
+      - name: Publish to Modrinth, CurseForge and Maven
+        env:
+          MODRINTH_API_KEY: ${{ secrets.MODRINTH_API_KEY }}
+          CURSEFORGE_API_KEY: ${{ secrets.CURSEFORGE_API_KEY }}
+          MAVEN_USER: ${{ secrets.MAVEN_USER }}
+          MAVEN_PASSWORD: ${{ secrets.MAVEN_PASSWORD }}
+          RELEASE_TYPE: ${{ github.event.inputs.release-type || 'release' }}
+        run: ./gradlew publishModRelease --build-cache

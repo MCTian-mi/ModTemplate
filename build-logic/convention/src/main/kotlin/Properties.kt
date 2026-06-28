@@ -21,14 +21,10 @@ val Project.accessTransformers: String by getter
 val Project.useMixin: Boolean by getter
 val Project.mixinPackage: String by getter
 val Project.mixinRefmap: String by getter
-val Project.generateMixinConfig: Boolean by getter
 val Project.coreModClass: String by getter
 val Project.enableCoreModDebug: Boolean by getter
-val Project.forceLoadedAsMod: Boolean by getter
+val Project.forceLoadAsMod: Boolean by getter
 
-val Project.stripForgeRequirements: Boolean by getter
-
-val Project.useShadowDeps: Boolean by getter
 val Project.minimizeShadowedDependencies: Boolean by getter
 val Project.relocateShadowedDependencies: Boolean by getter
 

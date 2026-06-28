@@ -3,11 +3,13 @@ import com.gtnewhorizons.retrofuturagradle.mcp.MCPTasks
 import com.gtnewhorizons.retrofuturagradle.minecraft.MinecraftTasks
 import com.gtnewhorizons.retrofuturagradle.minecraft.RunMinecraftTask
 import com.gtnewhorizons.retrofuturagradle.util.Distribution
+import org.apache.tools.ant.filters.ReplaceTokens
 
 plugins {
+    alias(libs.plugins.accesstransformers)
     alias(libs.plugins.retrofuturaGradle)
+    alias(libs.plugins.buildconfig)
     alias(libs.plugins.ideaExt)
-    alias(libs.plugins.blossom)
 }
 
 val modernJavaExtraRuntimeClasspath = configurations.create("modernJavaExtraRuntimeClasspath") {
@@ -23,19 +25,6 @@ minecraft {
 
     // Username for client run configurations
     username = devUserName
-
-    // Automatic token injection with RetroFuturaGradle
-    if (generateTags) {
-        tasks.injectTags.configure { outputClassName = "${modGroup}.Tags" }
-        tasks.processIdeaSettings.configure { dependsOn(tasks.injectTags) }
-        injectedTags.putAll(
-            mapOf(
-                "MODID" to modId,
-                "MODNAME" to modName,
-                "VERSION" to modVersion
-            )
-        )
-    }
 
     if (useLwjgl3ify) {
         mainLwjglVersion = 3
@@ -56,7 +45,7 @@ minecraft {
         }
 
         if (useCoreMod) {
-            add("-Dfml.coreMods.load=${modGroup}.${coreModClass}")
+            add("-Dfml.coreMods.load=$modGroup.$coreModClass")
         }
 
         if (enableCoreModDebug) {
@@ -74,21 +63,44 @@ minecraft {
     // extraTweakClasses.add("org.spongepowered.asm.launch.MixinTweaker")
 }
 
+// Automatic constants generation with BuildConfig
+if (generateTags) {
+    buildConfig {
+        className("Tags")
+        packageName(modGroup)
+        useJavaOutput()
+        buildConfigField("MODID", modId)
+        buildConfigField("MODNAME", modName)
+        buildConfigField("VERSION", modVersion)
+    }
+}
+
 // AccessTransformers
 if (accessTransformers.isNotEmpty()) {
     val atFiles = accessTransformers.split(";")
         .map { file("src/main/resources/$it") }
         .onEach { if (!it.exists()) throw GradleException("Could not find accessTransformer file \"$it\"!") }
 
-    tasks.deobfuscateMergedJarToSrg { accessTransformerFiles.from(atFiles) }
-    tasks.srgifyBinpatchedJar { accessTransformerFiles.from(atFiles) }
+    // This will apply ATs to both minecraft & forge sources
+    tasks.applyJST {
+        accessTransformerFiles.from(atFiles)
+    }
 }
 
-// Template files
-sourceSets.main {
-    blossom {
-        resources {
-            properties = mapOf(
+// Copy AT files to where it should be
+tasks.processResources {
+    if (!useMixin) exclude("*mixin*.json")
+
+    // Template files
+    filesMatching(
+        listOf(
+            "mcmod.info",
+            "pack.mcmeta",
+            "*mixin*.json",
+        ),
+    ) {
+        filter<ReplaceTokens>(
+            "tokens" to mapOf(
                 "mod_id" to modId,
                 "mod_name" to modName,
                 "mod_version" to modVersion,
@@ -97,20 +109,12 @@ sourceSets.main {
                 "mixin_package" to mixinPackage,
                 "mixin_refmap" to mixinRefmap,
                 "mixin_min_version" to libs.versions.mixin.get(),
+                "mixinextras_min_version" to libs.versions.mixinExtras.get(),
             )
-        }
+        )
     }
-}
 
-// Copy AT files to where it should be
-tasks.processResources {
     rename("(.+_at.cfg)", "META-INF/$1")
-
-    if (!useMixin) {
-        exclude {
-            it.name.contains("mixin") && it.name.endsWith(".json")
-        }
-    }
 }
 
 tasks.withType<Jar>().configureEach {
@@ -121,7 +125,7 @@ tasks.withType<Jar>().configureEach {
             }
             if (useMixin || useCoreMod) {
                 put("FMLCorePluginContainsFMLMod", true)
-                put("ForceLoadAsMod", forceLoadedAsMod)
+                put("ForceLoadAsMod", forceLoadAsMod)
             }
             if (accessTransformers.isNotEmpty()) {
                 put("FMLAT", accessTransformers.replace(";", " "))
@@ -188,8 +192,18 @@ if (useLwjgl3ify) {
     // JVM args toggled on only when hotswapping.
     val hotswapJvmArgs = listOf(
         "-XX:+AllowEnhancedClassRedefinition",
-        "-XX:HotswapAgent=fatjar"
+        "-XX:HotswapAgent=fatjar",
     )
+
+    val mixinHotswapJavaAgent = if (useMixin && enableHotswap) {
+        configurations.detachedConfiguration(libs.mixinbooter.get()).apply {
+            isCanBeConsumed = false
+            isCanBeResolved = true
+            isTransitive = false
+        }
+    } else {
+        null
+    }
 
     // JVM args required to run the 1.7.10/1.12.2-era stack on a modern (Java 17+/21) JVM via lwjgl3ify
     // and RetroFuturaBootstrap: encoding, the RFB system classloader, and a pile of --add-opens that
@@ -261,13 +275,13 @@ if (useLwjgl3ify) {
 
         // Runtime classpath: the lwjgl3ify/forgePatches extras, the mod's own runtime deps,
         // the generated launcher + patched Minecraft, and the mod jar itself.
-        classpath(configurations.named("modernJavaAsmBootstrap"))
-        classpath(configurations.named("modernJavaExtraRuntimeClasspath"))
-        classpath(configurations.named("runtimeClasspath"))
+        classpath(modernJavaAsmBootstrap)
+        classpath(modernJavaExtraRuntimeClasspath)
+        classpath(configurations.runtimeClasspath)
         classpath(mcpTasks.taskPackageMcLauncher)
         classpath(mcpTasks.taskPackagePatchedMc)
         classpath(mcpTasks.patchedConfiguration)
-        classpath(tasks.named("jar"))
+        classpath(tasks.jar)
 
         // Wire up RFG's late-binding setup (working dir, assets, natives, heap sizes, ...).
         // Must run inside the configuration block since constructors can't register actions.
@@ -275,10 +289,10 @@ if (useLwjgl3ify) {
 
         // Make sure the launcher classes, patched MC, vanilla assets and mod jar are built first.
         dependsOn(
-            mcpTasks.launcherSources.classesTaskName,
+            mcpTasks.launcherSources,
             mcpTasks.taskPackagePatchedMc,
             mcTasks.taskDownloadVanillaAssets,
-            "jar"
+            tasks.jar,
         )
 
         // Boot through RFB's bouncer entrypoint instead of vanilla GradleStart's launch target.
@@ -292,16 +306,13 @@ if (useLwjgl3ify) {
 
         // When mixins are enabled and we're hotswapping, attach mixinbooter as a -javaagent so
         // mixin'd classes can be redefined too. Resolved lazily via a detached, non-transitive config.
-        if (useMixin) {
-            extraJvmArgs.addAll(provider {
-                val mixinCfg = configurations.detachedConfiguration(dependencies.create(libs.mixinbooter))
-                mixinCfg.isCanBeConsumed = false
-                mixinCfg.isCanBeResolved = true
-                mixinCfg.isTransitive = false
-                buildList {
-                    if (enableHotswap) add("-javaagent:${mixinCfg.singleFile.absolutePath}")
-                }
-            })
+        mixinHotswapJavaAgent?.let { mixinCfg ->
+            extraJvmArgs.addAll(
+                mixinCfg.elements.map { elements ->
+                    val jar = elements.single().asFile
+                    listOf("-javaagent:${jar.absolutePath}")
+                },
+            )
         }
     }
 

@@ -1,14 +1,14 @@
 package com.myname.mymodid;
 
+import org.jspecify.annotations.NonNull;
+
 import java.util.*;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Predicate;
 
 // TODO)) UnwrappingException
-
 public sealed interface Result<T, E> extends Iterable<T> permits Result.Err, Result.Ok {
-// spotless:on
 
     private static <V> Iterator<V> singletonIterator(final V v) {
         return new Iterator<>() {
@@ -123,6 +123,7 @@ public sealed interface Result<T, E> extends Iterable<T> permits Result.Err, Res
         return this;
     }
 
+    @NonNull
     @Override
     default Iterator<T> iterator() {
         return switch (this) {

@@ -3,7 +3,7 @@ plugins {
     alias(libs.plugins.shadow)
 }
 
-val shadowImplementation: Configuration by configurations.creating
+val shadowImplementation = configurations.create("shadowImplementation")
 
 configurations.implementation {
     extendsFrom(shadowImplementation)

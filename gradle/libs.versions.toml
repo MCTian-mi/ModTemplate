@@ -6,7 +6,9 @@ shadow = "9.4.2"
 taskTree = "4.0.1"
 minotaur = "2.8.10"
 curseforgeGradle = "1.3.32"
-blossom = "2.2.0"
+buildconfig = "6.0.10"
+shipkitChangelog = "2.0.1"
+accesstransformers = "5.0.3"
 
 # Test platform
 junit = "6.1.0"
@@ -14,6 +16,7 @@ junit = "6.1.0"
 # Referred directly in minecraft.grale.kts
 lwjgl3 = "3.4.1"
 mixin = "0.8.7"
+mixinExtras = "0.5.4"
 
 asmDebug = "5.2"
 asm = "9.9.1"
@@ -35,7 +38,9 @@ shadow = { id = "com.gradleup.shadow", version.ref = "shadow" }
 taskTree = { id = "com.dorongold.task-tree", version.ref = "taskTree" }
 minotaur = { id = "com.modrinth.minotaur", version.ref = "minotaur" }
 curseforgeGradle = { id = "net.darkhax.curseforgegradle", version.ref = "curseforgeGradle" }
-blossom = { id = "net.kyori.blossom", version.ref = "blossom" }
+buildconfig = { id = "com.github.gmazzo.buildconfig", version.ref = "buildconfig" }
+shipkitChangelog = { id = "org.shipkit.shipkit-changelog", version.ref = "shipkitChangelog" }
+accesstransformers = { id = "net.minecraftforge.accesstransformers", version.ref = "accesstransformers" }
 
 [libraries]
 junit-bom = { module = "org.junit:junit-bom", version.ref = "junit" }

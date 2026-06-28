@@ -9,7 +9,7 @@ plugins {
     alias(libs.plugins.retrofuturaGradle)
 }
 
-val shadowDowngrade: Configuration by configurations.creating
+val shadowDowngrade = configurations.create("shadowDowngrade")
 
 configurations.compileOnly {
     extendsFrom(shadowDowngrade)
@@ -18,7 +18,6 @@ configurations.compileOnly {
 // JvmDowngrader
 tasks.withType<DowngradeJar>().configureEach { logLevel.set("FATAL") }
 tasks.withType<DowngradeFiles>().configureEach { logLevel.set("FATAL") }
-
 
 jvmdg.apply {
     shadePath.set(ConstantShadePath(jvmdgShadowPath.ifEmpty { defaultShadowPath }))

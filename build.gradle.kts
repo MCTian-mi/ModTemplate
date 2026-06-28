@@ -1,6 +1,7 @@
 plugins {
     alias(conventions.plugins.repositories)
     alias(conventions.plugins.minecraft)
+    alias(conventions.plugins.publish)
     alias(conventions.plugins.shadow)
     alias(conventions.plugins.jvmdg)
     alias(conventions.plugins.idea)
