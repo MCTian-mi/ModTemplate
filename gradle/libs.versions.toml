@@ -23,6 +23,7 @@ guava = "33.6.0-jre"
 gson = "2.14.0"
 mixinbooter = "11.0"
 lwjgl3ify = "1.0.1"
+forgePatchesExtra = "1.0.0"
 
 osxNarratorBlocker = "1.0"
 stripLatestForgeRequirements = "1.0"
@@ -55,6 +56,7 @@ guava = { module = "com.google.guava:guava", version.ref = "guava" }
 gson = { module = "com.google.code.gson:gson", version.ref = "gson" }
 mixinbooter = { module = "zone.rong:mixinbooter", version.ref = "mixinbooter" }
 lwjgl3ify = { module = "io.github.twilightflower:lwjgl3ify", version.ref = "lwjgl3ify" }
+forgePatchesExtra = { module = "io.github.mctian-mi:forgepatches-extra", version.ref = "forgePatchesExtra" }
 
 osxNarratorBlocker = { module = "com.cleanroommc:osxnarratorblocker", version.ref = "osxNarratorBlocker" }
 stripLatestForgeRequirements = { module = "com.cleanroommc:strip-latest-forge-requirements", version.ref = "stripLatestForgeRequirements" }

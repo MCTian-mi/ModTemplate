@@ -32,4 +32,3 @@ plugins {
 }
 
 includeBuild("build-logic")
-includeBuild("forgePatchesExtra")

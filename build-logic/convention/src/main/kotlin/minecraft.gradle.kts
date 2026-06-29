@@ -155,7 +155,7 @@ dependencies {
         modernJavaExtraRuntimeClasspath(
             variantOf(libs.lwjgl3ify) { classifier("forgePatches") }
         ) { isTransitive = false }
-        modernJavaExtraRuntimeClasspath("dev.tianmi:forgePatchesExtra:1.0.0") { isTransitive = false }
+        modernJavaExtraRuntimeClasspath(libs.forgePatchesExtra) { isTransitive = false }
     }
 
     if (useMixin) {
@@ -289,7 +289,7 @@ if (useLwjgl3ify) {
 
         // Make sure the launcher classes, patched MC, vanilla assets and mod jar are built first.
         dependsOn(
-            mcpTasks.launcherSources,
+            mcpTasks.taskPackageMcLauncher,
             mcpTasks.taskPackagePatchedMc,
             mcTasks.taskDownloadVanillaAssets,
             tasks.jar,
