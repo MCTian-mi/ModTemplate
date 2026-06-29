@@ -43,13 +43,26 @@ jobs:
           if [ "${{ github.ref_type }}" == "tag" ]; then
             echo "tag=${{ github.ref_name }}" >> "$GITHUB_OUTPUT"
           else
-            # workflow_dispatch: tag the current commit from the resolved Gradle version.
-            version=$(./gradlew -q printModVersion | tail -n 1)
+            # workflow_dispatch resolves the tag name from the Gradle version.
+            version=$(gradle -q printModVersion | tail -n 1)
             echo "tag=v${version}" >> "$GITHUB_OUTPUT"
           fi
 
+      - name: Ensure manual release tag exists
+        if: ${{ github.event_name == 'workflow_dispatch' }}
+        run: |
+          TAG="${{ steps.tag.outputs.tag }}"
+          if git ls-remote --exit-code --tags origin "refs/tags/${TAG}" >/dev/null 2>&1; then
+            echo "Tag ${TAG} already exists on origin."
+          elif git rev-parse -q --verify "refs/tags/${TAG}" >/dev/null; then
+            git push origin "refs/tags/${TAG}"
+          else
+            git tag "${TAG}" "$GITHUB_SHA"
+            git push origin "refs/tags/${TAG}"
+          fi
+
       - name: Build jars
-        run: ./gradlew build --build-cache
+        run: gradle build --build-cache
 
       - name: Create or update GitHub Release
         env:
@@ -80,4 +93,5 @@ jobs:
           MAVEN_USER: ${{ secrets.MAVEN_USER }}
           MAVEN_PASSWORD: ${{ secrets.MAVEN_PASSWORD }}
           RELEASE_TYPE: ${{ github.event.inputs.release-type || 'release' }}
-        run: ./gradlew publishModRelease --build-cache
+          GITHUB_TAG: ${{ steps.tag.outputs.tag }}
+        run: gradle publishModRelease --build-cache

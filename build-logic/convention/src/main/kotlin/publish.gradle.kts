@@ -2,26 +2,17 @@ import com.modrinth.minotaur.dependencies.Dependency
 import com.modrinth.minotaur.dependencies.ModDependency
 import com.modrinth.minotaur.dependencies.VersionDependency
 import net.darkhax.curseforgegradle.TaskPublishCurseForge
-import org.shipkit.changelog.GenerateChangelogTask
 
 plugins {
     `maven-publish`
-    alias(libs.plugins.shipkitChangelog)
     alias(libs.plugins.curseforgeGradle)
     alias(libs.plugins.minotaur)
 }
 
 val gitVersion: Provider<String> = providers.exec {
     commandLine(
-        "git",
-        "describe",
-        "--tags",
-        "--always",
-        "--first-parent",
-        "--abbrev=7",
-        "--dirty=.dirty",
-        "--match=*",
-        "HEAD"
+        "git", "describe", "--tags", "--always",
+        "--first-parent", "--abbrev=7", "--dirty=.dirty", "--match=*", "HEAD"
     )
     workingDir(rootDir)
     isIgnoreExitValue = true
@@ -39,18 +30,22 @@ val displayName: String =
     versionDisplayFormat.replace($$"$MOD_NAME", modName).replace($$"$VERSION", resolvedModVersion)
 
 val resolvedReleaseType: String =
-    providers.environmentVariable("RELEASE_TYPE").orElse(releaseType).get()
+    env("RELEASE_TYPE").getOrElse(releaseType)
 require(resolvedReleaseType in setOf("release", "beta", "alpha")) {
     "Release type invalid! Found \"$resolvedReleaseType\", allowed: \"release\", \"beta\", \"alpha\""
 }
 
+data class PublishTarget(val name: String, val task: TaskProvider<out Task>)
+
+val publishTargets = mutableListOf<PublishTarget>()
+
 // --- Changelog ----------------------------------------------------------------
 // Resolve which file holds the changelog Markdown:
 //   1. CHANGELOG_LOCATION env var, if set (highest precedence).
-//   2. The generated build/changelog.md, when 'generateChangelog' is enabled.
-//   3. A CHANGELOG.md at the project root, otherwise.
+//   2. The generated changelog, when 'generateChangelog' is enabled.
+//   3. CHANGELOG.md at the project root, otherwise.
 fun resolveChangelogFile(): File {
-    providers.environmentVariable("CHANGELOG_LOCATION").orNull?.let { return file(it) }
+    env("CHANGELOG_LOCATION").orNull?.let { return file(it) }
     if (generateChangelog) {
         return layout.buildDirectory
             .file("CHANGELOG.md")
@@ -65,42 +60,44 @@ fun readChangelog(): String {
     return if (f.exists()) f.readText(Charsets.UTF_8) else ""
 }
 
-// Generate a default changelog of all commits since the last tagged git commit using Shipkit.
-val generateChangelogTask =
-    tasks.named("generateChangelog", GenerateChangelogTask::class.java) {
-        group = "publishing"
-        description = "Generate a default changelog of all commits since the last tagged git commit"
-        onlyIf { generateChangelog }
+val generateChangelogTask = tasks.register("generateChangelog") {
+    enabled = generateChangelog
+    group = "publishing"
+    description = "Generates a changelog from git history when possible."
 
-        val repo = providers.environmentVariable("GITHUB_REPOSITORY").orElse("MCTian-mi/ModTemplate").get()
-        val token = providers.environmentVariable("GITHUB_TOKEN").orElse("").get()
-        val sha = providers.environmentVariable("GITHUB_SHA").orElse("HEAD").get()
+    val changelogFile = layout.buildDirectory.file("CHANGELOG.md")
+    outputs.file(changelogFile)
 
-        repository = repo
-        githubToken = token
-        revision = sha
-        version = resolvedModVersion
-        releaseTag = "v$resolvedModVersion"
-        previousRevision =
-            runCatching {
-                val proc =
-                    ProcessBuilder("git", "describe", "--abbrev=0", "--tags")
-                        .directory(rootDir)
-                        .redirectErrorStream(false)
-                        .start()
-                proc.inputStream
-                    .bufferedReader()
-                    .readText()
-                    .trim()
-                    .also { proc.waitFor() }
-            }.getOrDefault("")
+    doLast {
+        val previousTag = findPreviousGitTag()
+        val range = previousTag?.let { "$it..HEAD" } ?: "HEAD"
+        val commits = gitOrNull(
+            "log",
+            "--date=format:%d %b %Y",
+            "--pretty=%s - **%an** (%ad)",
+            range,
+        )
+        val changelog =
+            when {
+                commits?.isNotBlank() == true -> {
+                    val prefix =
+                        if (previousTag != null) "Changes since $previousTag" else "Changes in $displayName"
+                    "$prefix:\n\n*${commits.replace("\n", "\n*")}"
+                }
 
-        outputFile =
-            layout.buildDirectory
-                .file("changelog.md")
-                .get()
-                .asFile
+                previousTag != null ->
+                    "There have been no changes since $previousTag."
+
+                else ->
+                    "Changes in $displayName.\n\nNo git history was available to generate a detailed changelog."
+            }
+
+        changelogFile.get().asFile.apply {
+            parentFile.mkdirs()
+            writeText(changelog, Charsets.UTF_8)
+        }
     }
+}
 // --- Maven publishing ---------------------------------------------------------
 // Default artifact group: 'mavenArtifactGroup' if set, otherwise 'modGroup' trimmed to its
 // parent package (com.myname.mymodid -> com.myname); a group without dots is kept as-is.
@@ -108,10 +105,6 @@ val defaultArtifactGroup: String =
     mavenArtifactGroup.ifBlank {
         modGroup.substringBeforeLast('.', modGroup)
     }
-
-// Tracks the release tasks that are actually configured, so 'publishModRelease' can depend
-// only on the targets available in this environment.
-val releaseTasks = mutableListOf<Any>()
 
 // Only wire up a remote Maven repository when a target URL is provided. 'components["java"]'
 // already carries the sources jar because jvm.gradle.kts calls withSourcesJar().
@@ -121,9 +114,9 @@ if (customMavenPublishUrl.isNotBlank()) {
             create<MavenPublication>("maven") {
                 from(components["java"])
 
-                groupId = providers.environmentVariable("ARTIFACT_GROUP_ID").orElse(defaultArtifactGroup).get()
-                artifactId = providers.environmentVariable("ARTIFACT_ID").orElse(archiveName).get()
-                version = providers.environmentVariable("RELEASE_VERSION").orElse(resolvedModVersion).get()
+                groupId = env("ARTIFACT_GROUP_ID").getOrElse(defaultArtifactGroup)
+                artifactId = env("ARTIFACT_ID").getOrElse(archiveName)
+                version = env("RELEASE_VERSION").getOrElse(resolvedModVersion)
             }
         }
         repositories {
@@ -131,17 +124,20 @@ if (customMavenPublishUrl.isNotBlank()) {
                 url = uri(customMavenPublishUrl)
                 isAllowInsecureProtocol = !customMavenPublishUrl.startsWith("https")
                 credentials {
-                    username = providers.environmentVariable("MAVEN_USER").orElse("NONE").get()
-                    password = providers.environmentVariable("MAVEN_PASSWORD").orElse("NONE").get()
+                    username = env("MAVEN_USER").getOrElse("NONE")
+                    password = env("MAVEN_PASSWORD").getOrElse("NONE")
                 }
             }
         }
     }
-    releaseTasks.add(tasks.named("publish"))
+    publishTargets.add(PublishTarget("Maven", tasks.named("publish")))
 }
 
 // --- Modrinth -----------------------------------------------------------------
-val modrinthApiKey = providers.environmentVariable("MODRINTH_API_KEY")
+val modrinthApiKey = env("MODRINTH_API_KEY")
+val resolvedModrinthProjectId = env("MODRINTH_PROJECT_ID").orElse(modrinthProjectId).get().trim()
+val shouldPublishModrinth =
+    resolvedModrinthProjectId.isNotBlank() && (modrinthApiKey.getOrElse("").isNotBlank() || deploymentDebug)
 
 // Build a Modrinth Dependency from the 'scope-type:name' relation syntax used in gradle.properties.
 fun parseModrinthRelation(entry: String): Dependency {
@@ -176,10 +172,10 @@ fun parseModrinthRelation(entry: String): Dependency {
     }
 }
 
-if (modrinthApiKey.isPresent || deploymentDebug) {
+if (shouldPublishModrinth) {
     modrinth {
         token.set(modrinthApiKey.orElse("debug_token"))
-        projectId.set(modrinthProjectId)
+        projectId.set(resolvedModrinthProjectId)
         versionName.set(displayName)
         versionNumber.set(resolvedModVersion)
         versionType.set(resolvedReleaseType)
@@ -203,11 +199,14 @@ if (modrinthApiKey.isPresent || deploymentDebug) {
     tasks.named("modrinth") {
         dependsOn(tasks.named("build"), generateChangelogTask)
     }
-    releaseTasks.add(tasks.named("modrinth"))
+    publishTargets.add(PublishTarget("Modrinth", tasks.named("modrinth")))
 }
 
 // --- CurseForge ---------------------------------------------------------------
-val curseForgeApiKey = providers.environmentVariable("CURSEFORGE_API_KEY")
+val curseForgeApiKey = env("CURSEFORGE_API_KEY")
+val resolvedCurseForgeProjectId = env("CURSEFORGE_PROJECT_ID").orElse(curseForgeProjectId).get().trim()
+val shouldPublishCurseForge =
+    resolvedCurseForgeProjectId.isNotBlank() && (curseForgeApiKey.getOrElse("").isNotBlank() || deploymentDebug)
 
 // Normalize a CurseForge relation type from the 'type:name' syntax used in gradle.properties.
 fun normalizeCurseForgeType(raw: String): String {
@@ -225,7 +224,7 @@ fun normalizeCurseForgeType(raw: String): String {
     return type
 }
 
-if (curseForgeApiKey.isPresent || deploymentDebug) {
+if (shouldPublishCurseForge) {
     val curseforge =
         tasks.register<TaskPublishCurseForge>("curseforge") {
             group = "publishing"
@@ -235,7 +234,7 @@ if (curseForgeApiKey.isPresent || deploymentDebug) {
 
             doFirst {
                 val changelogRaw = readChangelog()
-                val mainFile = upload(curseForgeProjectId, tasks.named("reobfJar").get())
+                val mainFile = upload(resolvedCurseForgeProjectId, tasks.named("reobfJar").get())
                 mainFile.displayName = displayName
                 mainFile.releaseType = resolvedReleaseType
                 mainFile.changelog = changelogRaw
@@ -266,15 +265,22 @@ if (curseForgeApiKey.isPresent || deploymentDebug) {
     curseforge.configure {
         dependsOn(tasks.named("build"), generateChangelogTask)
     }
-    releaseTasks.add(curseforge)
+    publishTargets.add(PublishTarget("CurseForge", curseforge))
 }
 
-// --- Aggregate lifecycle ------------------------------------------------------
-// Convenience task that publishes to every target configured in this environment.
 tasks.register("publishModRelease") {
     group = "publishing"
-    description = "Publishes the mod release to all configured targets (Maven, Modrinth, CurseForge)"
-    dependsOn(releaseTasks)
+    description = "Publishes the mod to the configured release targets."
+    dependsOn(publishTargets.map { it.task })
+
+    doFirst {
+        if (publishTargets.isEmpty()) {
+            throw GradleException(
+                "No publish targets are configured. Set customMavenPublishUrl, or provide a Modrinth/CurseForge project ID with its API key (or deploymentDebug=true).",
+            )
+        }
+        logger.lifecycle("Publishing mod release to: ${publishTargets.joinToString { it.name }}")
+    }
 }
 
 // Prints just the resolved mod version, for scripting/CI (e.g. computing a release tag).
@@ -284,3 +290,26 @@ tasks.register("printModVersion") {
     val v = resolvedModVersion
     doLast { println(v) }
 }
+
+fun findPreviousGitTag(): String? {
+    val githubTag = env("GITHUB_TAG").orNull?.trim()?.takeIf { it.isNotBlank() }
+    if (githubTag != null) {
+        return gitOrNull("describe", "--abbrev=0", "--tags", "$githubTag^")
+            ?: gitOrNull("describe", "--abbrev=0", "--tags", "HEAD^")
+    }
+    return gitOrNull("describe", "--abbrev=0", "--tags", "--first-parent", "HEAD")
+}
+
+fun gitOrNull(vararg args: String): String? {
+    val output = providers.exec {
+        commandLine("git", *args)
+        workingDir = rootDir
+        isIgnoreExitValue = true
+    }
+    if (output.result.get().exitValue != 0) {
+        return null
+    }
+    return output.standardOutput.asText.get().trim().takeIf { it.isNotBlank() }
+}
+
+fun env(name: String): Provider<String> = providers.environmentVariable(name)
