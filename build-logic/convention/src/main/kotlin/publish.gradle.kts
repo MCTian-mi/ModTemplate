@@ -20,7 +20,11 @@ val gitVersion: Provider<String> = providers.exec {
     out.trim().ifBlank { "NO_GIT_VERSION" }
 }.orElse("NO_GIT_VERSION")
 
-val resolvedModVersion: String = modVersion.ifBlank { gitVersion.get() }
+// MOD_VERSION (set by CI) overrides everything; otherwise fall back to the 'modVersion'
+// property, then to the git-derived version.
+val resolvedModVersion: String =
+    env("MOD_VERSION").orNull?.takeIf(String::isNotBlank)
+        ?: modVersion.ifBlank { gitVersion.get() }
 
 group = modGroup
 version = resolvedModVersion
@@ -34,6 +38,9 @@ val resolvedReleaseType: String =
 require(resolvedReleaseType in setOf("release", "beta", "alpha")) {
     "Release type invalid! Found \"$resolvedReleaseType\", allowed: \"release\", \"beta\", \"alpha\""
 }
+
+// DEPLOYMENT_DEBUG (set by CI) overrides the 'deploymentDebug' property when present.
+val resolvedDeploymentDebug: Boolean = envBool("DEPLOYMENT_DEBUG", deploymentDebug)
 
 data class PublishTarget(val name: String, val task: TaskProvider<out Task>)
 
@@ -106,9 +113,10 @@ val defaultArtifactGroup: String =
         modGroup.substringBeforeLast('.', modGroup)
     }
 
-// Only wire up a remote Maven repository when a target URL is provided. 'components["java"]'
-// already carries the sources jar because jvm.gradle.kts calls withSourcesJar().
-if (customMavenPublishUrl.isNotBlank()) {
+// Only wire up a remote Maven repository when a target URL is provided and Maven publishing is
+// enabled (PUBLISH_MAVEN, default on). 'components["java"]' already carries the sources jar
+// because jvm.gradle.kts calls withSourcesJar().
+if (customMavenPublishUrl.isNotBlank() && envBool("PUBLISH_MAVEN", true)) {
     publishing {
         publications {
             create<MavenPublication>("maven") {
@@ -137,7 +145,9 @@ if (customMavenPublishUrl.isNotBlank()) {
 val modrinthApiKey = env("MODRINTH_API_KEY")
 val resolvedModrinthProjectId = env("MODRINTH_PROJECT_ID").orElse(modrinthProjectId).get().trim()
 val shouldPublishModrinth =
-    resolvedModrinthProjectId.isNotBlank() && (modrinthApiKey.getOrElse("").isNotBlank() || deploymentDebug)
+    envBool("PUBLISH_MODRINTH", true) &&
+            resolvedModrinthProjectId.isNotBlank() &&
+            (modrinthApiKey.getOrElse("").isNotBlank() || resolvedDeploymentDebug)
 
 // Build a Modrinth Dependency from the 'scope-type:name' relation syntax used in gradle.properties.
 fun parseModrinthRelation(entry: String): Dependency {
@@ -182,7 +192,7 @@ if (shouldPublishModrinth) {
         gameVersions.set(listOf(minecraftVersion))
         loaders.set(listOf("forge"))
         detectLoaders.set(false)
-        debugMode.set(deploymentDebug)
+        debugMode.set(resolvedDeploymentDebug)
         uploadFile.set(tasks.named("reobfJar"))
         additionalFiles.add(tasks.named("sourcesJar"))
         changelog.set(provider { readChangelog() })
@@ -206,7 +216,9 @@ if (shouldPublishModrinth) {
 val curseForgeApiKey = env("CURSEFORGE_API_KEY")
 val resolvedCurseForgeProjectId = env("CURSEFORGE_PROJECT_ID").orElse(curseForgeProjectId).get().trim()
 val shouldPublishCurseForge =
-    resolvedCurseForgeProjectId.isNotBlank() && (curseForgeApiKey.getOrElse("").isNotBlank() || deploymentDebug)
+    envBool("PUBLISH_CURSEFORGE", true) &&
+            resolvedCurseForgeProjectId.isNotBlank() &&
+            (curseForgeApiKey.getOrElse("").isNotBlank() || resolvedDeploymentDebug)
 
 // Normalize a CurseForge relation type from the 'type:name' syntax used in gradle.properties.
 fun normalizeCurseForgeType(raw: String): String {
@@ -229,7 +241,7 @@ if (shouldPublishCurseForge) {
         tasks.register<TaskPublishCurseForge>("curseforge") {
             group = "publishing"
             disableVersionDetection()
-            debugMode = deploymentDebug
+            debugMode = resolvedDeploymentDebug
             apiToken = curseForgeApiKey.orElse("debug_token").get()
 
             doFirst {
@@ -313,3 +325,9 @@ fun gitOrNull(vararg args: String): String? {
 }
 
 fun env(name: String): Provider<String> = providers.environmentVariable(name)
+
+// Reads a boolean from an environment variable. A blank or unset value falls back to [default],
+// so CI can pass empty strings for inputs that don't apply (e.g. on tag-push events) without
+// flipping a target off.
+fun envBool(name: String, default: Boolean): Boolean =
+    env(name).orNull?.takeIf(String::isNotBlank)?.toBoolean() ?: default

@@ -6,19 +6,55 @@ on:
       - 'v*'
   workflow_dispatch:
     inputs:
+      version:
+        description: 'Mod version'
+        required: true
+        type: string
       release-type:
         description: 'Release type'
         type: choice
-        default: 'release'
+        default: 'beta'
         options:
           - 'release'
           - 'beta'
           - 'alpha'
+      publish-cf:
+        description: 'Publish to CF'
+        default: true
+        type: boolean
+      publish-mr:
+        description: 'Publish to MR'
+        default: true
+        type: boolean
+      publish-gh:
+        description: 'Publish to Github'
+        default: true
+        type: boolean
+      publish-maven:
+        description: 'Publish to Maven'
+        default: true
+        type: boolean
+      deploy-debug:
+        description: 'Deploy debug (validate without uploading)'
+        default: false
+        type: boolean
+      overwrite:
+        description: 'Overwrite current tag (if exists)'
+        default: false
+        type: boolean
 
-# Write changelog notes generated from the GitHub Release body into this file, so the Gradle
-# publish tasks pick them up via the CHANGELOG_LOCATION precedence rule.
+# These environment variables flow into the Gradle publish script (publish.gradle.kts).
+# On tag-push events the workflow_dispatch inputs evaluate to empty strings; the Gradle side
+# treats blank values as "use the default", so the push path keeps its original behaviour
+# (all configured targets publish, version derived from the git tag).
 env:
   CHANGELOG_LOCATION: build/gh_changelog.md
+  MOD_VERSION: ${{ inputs.version }}
+  RELEASE_TYPE: ${{ inputs.release-type || 'release' }}
+  PUBLISH_MODRINTH: ${{ inputs.publish-mr }}
+  PUBLISH_CURSEFORGE: ${{ inputs.publish-cf }}
+  PUBLISH_MAVEN: ${{ inputs.publish-maven }}
+  DEPLOYMENT_DEBUG: ${{ inputs.deploy-debug }}
 
 jobs:
   release:
@@ -43,17 +79,23 @@ jobs:
           if [ "${{ github.ref_type }}" == "tag" ]; then
             echo "tag=${{ github.ref_name }}" >> "$GITHUB_OUTPUT"
           else
-            # workflow_dispatch resolves the tag name from the Gradle version.
+            # workflow_dispatch resolves the tag name from the Gradle version (MOD_VERSION).
             version=$(gradle -q printModVersion | tail -n 1)
             echo "tag=v${version}" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Ensure manual release tag exists
-        if: ${{ github.event_name == 'workflow_dispatch' }}
+      - name: Ensure release tag exists
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.publish-gh }}
         run: |
           TAG="${{ steps.tag.outputs.tag }}"
           if git ls-remote --exit-code --tags origin "refs/tags/${TAG}" >/dev/null 2>&1; then
-            echo "Tag ${TAG} already exists on origin."
+            if [ "${{ inputs.overwrite }}" == "true" ]; then
+              echo "Overwriting existing tag ${TAG}."
+              git tag -f "${TAG}" "$GITHUB_SHA"
+              git push --force origin "refs/tags/${TAG}"
+            else
+              echo "Tag ${TAG} already exists on origin; keeping it (overwrite disabled)."
+            fi
           elif git rev-parse -q --verify "refs/tags/${TAG}" >/dev/null; then
             git push origin "refs/tags/${TAG}"
           else
@@ -64,34 +106,51 @@ jobs:
       - name: Build jars
         run: gradle build --build-cache
 
-      - name: Create or update GitHub Release
+      # Resolve the changelog independently of GitHub publishing so Modrinth/CurseForge always
+      # get release notes. Prefer an existing release body, then GitHub's generated notes.
+      - name: Resolve changelog
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           TAG="${{ steps.tag.outputs.tag }}"
           mkdir -p build
+          if gh release view "$TAG" --json body --jq '.body' > "$CHANGELOG_LOCATION" 2>/dev/null && [ -s "$CHANGELOG_LOCATION" ]; then
+            echo "Using existing GitHub release notes for $TAG."
+          elif gh api -X POST "/repos/${{ github.repository }}/releases/generate-notes" -f tag_name="$TAG" --jq '.body' > "$CHANGELOG_LOCATION" 2>/dev/null && [ -s "$CHANGELOG_LOCATION" ]; then
+            echo "Generated release notes for $TAG."
+          else
+            echo "No changelog found" > "$CHANGELOG_LOCATION"
+          fi
+
+      - name: Create or update GitHub Release
+        if: ${{ github.event_name != 'workflow_dispatch' || inputs.publish-gh }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG="${{ steps.tag.outputs.tag }}"
           if gh release view "$TAG" >/dev/null 2>&1; then
-            echo "Release $TAG already exists; reusing its notes."
+            echo "Release $TAG already exists; reusing it."
           else
             gh release create "$TAG" \
               --title "$TAG" \
-              --generate-notes \
+              --notes-file "$CHANGELOG_LOCATION" \
               --verify-tag
           fi
-          # Persist the release notes so the publish tasks can attach them as the changelog.
-          gh release view "$TAG" --json body --jq '.body' > "$CHANGELOG_LOCATION" || echo "No changelog found" > "$CHANGELOG_LOCATION"
 
       - name: Upload jars to GitHub Release
+        if: ${{ github.event_name != 'workflow_dispatch' || inputs.publish-gh }}
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: gh release upload "${{ steps.tag.outputs.tag }}" build/libs/*.jar --clobber
 
+      # Skip when nothing is selected for Gradle-side targets, otherwise publishModRelease would
+      # fail with "no publish targets configured" (e.g. a GitHub-only manual release).
       - name: Publish to Modrinth, CurseForge and Maven
+        if: ${{ github.event_name != 'workflow_dispatch' || inputs.publish-mr || inputs.publish-cf || inputs.publish-maven }}
         env:
           MODRINTH_API_KEY: ${{ secrets.MODRINTH_API_KEY }}
           CURSEFORGE_API_KEY: ${{ secrets.CURSEFORGE_API_KEY }}
           MAVEN_USER: ${{ secrets.MAVEN_USER }}
           MAVEN_PASSWORD: ${{ secrets.MAVEN_PASSWORD }}
-          RELEASE_TYPE: ${{ github.event.inputs.release-type || 'release' }}
           GITHUB_TAG: ${{ steps.tag.outputs.tag }}
         run: gradle publishModRelease --build-cache

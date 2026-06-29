@@ -27,21 +27,21 @@ jvmdg.apply {
     dg(shadowDowngrade)
 }
 
-val downgradeRunJar by tasks.registering(DowngradeJar::class) {
+val downgradeRunJar = tasks.register<DowngradeJar>("downgradeRunJar") {
     description = "Downgrade the slim project jar for Minecraft run tasks"
     dependsOn(tasks.jar)
     inputFile = tasks.jar.flatMap { it.archiveFile }
     archiveClassifier = "run-downgraded"
 }
 
-val shadeRunDowngradedApi by tasks.registering(ShadeJar::class) {
+val shadeRunDowngradedApi = tasks.register<ShadeJar>("shadeRunDowngradedApi") {
     description = "Shade JvmDowngrader API stubs into the downgraded run jar"
     dependsOn(downgradeRunJar)
     inputFile = downgradeRunJar.flatMap { it.archiveFile }
     archiveClassifier = "run-downgraded-shaded"
 }
 
-val downgradeTestClasses by tasks.registering(DowngradeFiles::class) {
+val downgradeTestClasses = tasks.register<DowngradeFiles>("downgradeTestClasses") {
     description = "Downgrade classes in src/tests"
     inputCollection = files(sourceSets["test"].output.classesDirs, sourceSets["api"].output.classesDirs)
     dependsOn(tasks.testClasses, tasks.apiClasses)
