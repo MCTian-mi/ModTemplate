@@ -1,10 +1,10 @@
-import com.modrinth.minotaur.dependencies.Dependency
-import com.modrinth.minotaur.dependencies.ModDependency
-import com.modrinth.minotaur.dependencies.VersionDependency
+import com.modrinth.minotaur.dependencies.container.NamedDependencyContainer
 import net.darkhax.curseforgegradle.TaskPublishCurseForge
+import net.darkhax.curseforgegradle.Constants as CurseForge
 
 plugins {
     `maven-publish`
+    alias(libs.plugins.retrofuturaGradle)
     alias(libs.plugins.curseforgeGradle)
     alias(libs.plugins.minotaur)
 }
@@ -30,7 +30,7 @@ group = modGroup
 version = resolvedModVersion
 
 // --- Shared deployment values -------------------------------------------------
-val displayName: String =
+val releaseName: String =
     versionDisplayFormat.replace($$"$MOD_NAME", modName).replace($$"$VERSION", resolvedModVersion)
 
 val resolvedReleaseType: String =
@@ -67,6 +67,7 @@ fun readChangelog(): String {
     return if (f.exists()) f.readText(Charsets.UTF_8) else ""
 }
 
+// TODO))
 val generateChangelogTask = tasks.register("generateChangelog") {
     enabled = generateChangelog
     group = "publishing"
@@ -93,7 +94,7 @@ val generateChangelogTask = tasks.register("generateChangelog") {
             when {
                 commits?.isNotBlank() == true -> {
                     val prefix =
-                        if (previousTag != null) "Changes since $previousTag" else "Changes in $displayName"
+                        if (previousTag != null) "Changes since $previousTag" else "Changes in $releaseName"
                     "$prefix:\n\n*${commits.replace("\n", "\n*")}"
                 }
 
@@ -101,7 +102,7 @@ val generateChangelogTask = tasks.register("generateChangelog") {
                     "There have been no changes since $previousTag."
 
                 else ->
-                    "Changes in $displayName.\n\nNo git history was available to generate a detailed changelog."
+                    "Changes in $releaseName.\n\nNo git history was available to generate a detailed changelog."
             }
         } else {
             ""
@@ -117,14 +118,13 @@ val generateChangelogTask = tasks.register("generateChangelog") {
 // --- Maven publishing ---------------------------------------------------------
 // Default artifact group: 'mavenArtifactGroup' if set, otherwise 'modGroup' trimmed to its
 // parent package (com.myname.mymodid -> com.myname); a group without dots is kept as-is.
+// TODO))
 val defaultArtifactGroup: String =
     mavenArtifactGroup.ifBlank {
-        modGroup.substringBeforeLast('.', modGroup)
+        modGroup.substringBeforeLast(".")
     }
 
-// Only wire up a remote Maven repository when a target URL is provided and Maven publishing is
-// enabled (PUBLISH_MAVEN, default on). 'components["java"]' already carries the sources jar
-// because jvm.gradle.kts calls withSourcesJar().
+// Maven
 if (customMavenPublishUrl.isNotBlank() && envBool("PUBLISH_MAVEN", true)) {
     publishing {
         publications {
@@ -147,10 +147,9 @@ if (customMavenPublishUrl.isNotBlank() && envBool("PUBLISH_MAVEN", true)) {
             }
         }
     }
-    publishTargets.add(PublishTarget("Maven", tasks.named("publish")))
 }
 
-// --- Modrinth -----------------------------------------------------------------
+// TODO))
 val modrinthApiKey = env("MODRINTH_API_KEY")
 val resolvedModrinthProjectId = env("MODRINTH_PROJECT_ID").orElse(modrinthProjectId).get().trim()
 val shouldPublishModrinth =
@@ -158,70 +157,46 @@ val shouldPublishModrinth =
             resolvedModrinthProjectId.isNotBlank() &&
             (modrinthApiKey.getOrElse("").isNotBlank() || resolvedDeploymentDebug)
 
-// Build a Modrinth Dependency from the 'scope-type:name' relation syntax used in gradle.properties.
-fun parseModrinthRelation(entry: String): Dependency {
-    val parts = entry.split(":")
-    require(parts.size == 2) { "Invalid Modrinth relation \"$entry\", expected 'scope-type:name'" }
-    val qualifier = parts[0].split("-")
-    var scope = qualifier[0]
-    var type = if (qualifier.size > 1) qualifier[1] else "project"
-    val name = parts[1]
 
-    scope =
-        when (scope) {
-            "req" -> "required"
-            "opt" -> "optional"
-            "embed" -> "embedded"
-            "incomp", "fail" -> "incompatible"
-            else -> scope
-        }
-    require(scope in setOf("required", "optional", "incompatible", "embedded")) {
-        "Invalid Modrinth dependency scope: $scope"
-    }
-    type =
-        when (type) {
-            "proj", "", "p" -> "project"
-            "ver", "v" -> "version"
-            else -> type
-        }
-    return when (type) {
-        "project" -> ModDependency(name, scope)
-        "version" -> VersionDependency(name, scope)
-        else -> throw GradleException("Invalid Modrinth dependency type: $type")
-    }
-}
-
+// Modrinth
 if (shouldPublishModrinth) {
     modrinth {
-        token.set(modrinthApiKey.orElse("debug_token"))
-        projectId.set(resolvedModrinthProjectId)
-        versionName.set(displayName)
-        versionNumber.set(resolvedModVersion)
-        versionType.set(resolvedReleaseType)
-        gameVersions.set(listOf(minecraftVersion))
-        loaders.set(listOf("forge"))
-        detectLoaders.set(false)
-        debugMode.set(resolvedDeploymentDebug)
-        uploadFile.set(tasks.named("reobfJar"))
-        additionalFiles.add(tasks.named("sourcesJar"))
-        changelog.set(provider { readChangelog() })
+        token = modrinthApiKey.orElse("debug_token")
+        projectId = resolvedModrinthProjectId
+        versionName = releaseName
+        versionNumber = resolvedModVersion
+        versionType = resolvedReleaseType
+        gameVersions = listOf(minecraftVersion)
+        loaders = listOf("Forge")
+        detectLoaders = false
+        debugMode = resolvedDeploymentDebug
+        uploadFile.set(tasks.reobfJar)
+        additionalFiles = listOf(tasks.jar, tasks.named("sourcesJar"))
+        changelog = readChangelog()
 
-        if (modrinthRelations.isNotBlank()) {
-            dependencies.set(
-                modrinthRelations
-                    .split(";")
-                    .filter { it.isNotBlank() }
-                    .map { parseModrinthRelation(it) },
-            )
+        modrinthRelations.takeIf { it.isNotBlank() }?.let { str ->
+            str.split(";")
+                .filter { it.isNotBlank() }
+                .forEach {
+                    val args = it.split(":", limit = 3)
+                    val (type, slur) = args
+                    val version = args.getOrNull(2)
+                    when (type) {
+                        in ModRelations.REQ -> required.of(slur, version)
+                        in ModRelations.INC -> incompatible.of(slur, version)
+                        in ModRelations.OPT -> optional.of(slur, version)
+                        in ModRelations.EMB -> embedded.of(slur, version)
+                    }
+                }
         }
     }
-    tasks.named("modrinth") {
-        dependsOn(tasks.named("build"), generateChangelogTask)
-    }
-    publishTargets.add(PublishTarget("Modrinth", tasks.named("modrinth")))
 }
 
-// --- CurseForge ---------------------------------------------------------------
+tasks.modrinth {
+    enabled = shouldPublishModrinth
+}
+
+// TODO))
 val curseForgeApiKey = env("CURSEFORGE_API_KEY")
 val resolvedCurseForgeProjectId = env("CURSEFORGE_PROJECT_ID").orElse(curseForgeProjectId).get().trim()
 val shouldPublishCurseForge =
@@ -229,65 +204,43 @@ val shouldPublishCurseForge =
             resolvedCurseForgeProjectId.isNotBlank() &&
             (curseForgeApiKey.getOrElse("").isNotBlank() || resolvedDeploymentDebug)
 
-// Normalize a CurseForge relation type from the 'type:name' syntax used in gradle.properties.
-fun normalizeCurseForgeType(raw: String): String {
-    val type =
-        when (raw) {
-            "req", "required" -> "requiredDependency"
-            "opt", "optional" -> "optionalDependency"
-            "embed", "embedded" -> "embeddedLibrary"
-            "incomp", "fail" -> "incompatible"
-            else -> raw
-        }
-    require(
-        type in setOf("requiredDependency", "embeddedLibrary", "optionalDependency", "tool", "incompatible"),
-    ) { "Invalid CurseForge dependency type: $type" }
-    return type
-}
-
+// CurseForge
 if (shouldPublishCurseForge) {
-    val curseforge =
-        tasks.register<TaskPublishCurseForge>("curseforge") {
-            group = "publishing"
-            disableVersionDetection()
-            debugMode = resolvedDeploymentDebug
-            apiToken = curseForgeApiKey.orElse("debug_token").get()
+    tasks.register<TaskPublishCurseForge>("curseforge") {
+        description = "Publishes mod to CurseForge"
+        group = "publishing"
 
-            doFirst {
-                val changelogRaw = readChangelog()
-                val mainFile = upload(resolvedCurseForgeProjectId, tasks.named("reobfJar").get())
-                mainFile.displayName = displayName
-                mainFile.releaseType = resolvedReleaseType
-                mainFile.changelog = changelogRaw
-                mainFile.changelogType = "markdown"
-                mainFile.addModLoader("Forge")
-                mainFile.addJavaVersion("Java 8")
-                mainFile.addGameVersion(minecraftVersion)
+        disableVersionDetection()
+        debugMode = resolvedDeploymentDebug
+        apiToken = env("CURSEFORGE_API_KEY").orElse("debug_token")
 
-                if (curseForgeRelations.isNotBlank()) {
-                    curseForgeRelations
-                        .split(";")
-                        .filter { it.isNotBlank() }
-                        .forEach { dep ->
-                            val parts = dep.split(":")
-                            require(parts.size == 2) {
-                                "Invalid CurseForge relation \"$dep\", expected 'type:name'"
-                            }
-                            mainFile.addRelation(parts[1], normalizeCurseForgeType(parts[0]))
+        with(upload(resolvedCurseForgeProjectId, tasks.reobfJar)) {
+            displayName = releaseName
+            releaseType = resolvedReleaseType
+            changelogType = CurseForge.CHANGELOG_MARKDOWN
+            changelog = readChangelog()
+            addModLoader("Forge")
+            addGameVersion(minecraftVersion)
+            withAdditionalFile(tasks.jar)
+            withAdditionalFile(tasks.named("sourcesJar"))
+
+            curseForgeRelations.takeIf { it.isNotBlank() }?.let { str ->
+                str.split(";")
+                    .filter { it.isNotBlank() }
+                    .forEach {
+                        val (type, slur) = it.split(':', limit = 2)
+                        when (type) {
+                            in ModRelations.REQ -> addRequirement(slur)
+                            in ModRelations.INC -> addIncompatibility(slur)
+                            in ModRelations.OPT -> addOptional(slur)
+                            in ModRelations.EMB -> addEmbedded(slur)
                         }
-                }
-
-                val sources = tasks.named("sourcesJar").get()
-                mainFile.withAdditionalFile(sources).apply {
-                    changelog = changelogRaw
-                }
+                    }
             }
         }
-    curseforge.configure {
-        dependsOn(tasks.named("build"), generateChangelogTask)
     }
-    publishTargets.add(PublishTarget("CurseForge", curseforge))
 }
+
 
 tasks.register("publishModRelease") {
     group = "publishing"
@@ -344,3 +297,14 @@ fun env(name: String): Provider<String> = providers.environmentVariable(name)
 // flipping a target off.
 fun envBool(name: String, default: Boolean): Boolean =
     env(name).orNull?.takeIf(String::isNotBlank)?.toBoolean() ?: default
+
+fun NamedDependencyContainer.of(slur: String, version: String? = null) {
+    return if (version.isNullOrBlank()) project(slur) else version(slur, version)
+}
+
+object ModRelations {
+    val REQ = listOf("req", "required", "requiredDependency")
+    val OPT = listOf("opt", "optional", "optionalDependency")
+    val EMB = listOf("emb", "embedded", "embeddedLibrary")
+    val INC = listOf("incomp", "fail", "incompatible")
+}
