@@ -21,9 +21,6 @@ tasks.withType<DowngradeFiles>().configureEach { logLevel.set("FATAL") }
 
 jvmdg.apply {
     shadePath.set(ConstantShadePath(jvmdgShadowPath.ifEmpty { defaultShadowPath }))
-//    defaultTask {
-//        enabled = enableJvmdg
-//    }
     dg(shadowDowngrade)
 }
 
@@ -53,9 +50,12 @@ tasks.test {
 
 tasks.reobfJar { inputJar.set(tasks.shadeDowngradedApi.flatMap { it.archiveFile }) }
 
+// RunObf* tasks are intentionally excluded, since they relay on reobfJar
 tasks.withType<RunMinecraftTask>().configureEach {
-    dependsOn(shadeRunDowngradedApi)
-    classpath = classpath - files(tasks.jar) + files(shadeRunDowngradedApi) + files(shadowDowngrade)
+    if (!systemProperties.contains("retrofuturagradle.reobfDev")) {
+        dependsOn(shadeRunDowngradedApi)
+        classpath = classpath - files(tasks.jar) + files(shadeRunDowngradedApi) + files(shadowDowngrade)
+    }
 }
 
 tasks.compileInjectedInterfacesJava {

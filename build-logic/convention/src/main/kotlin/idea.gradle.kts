@@ -13,7 +13,6 @@ base {
 
 idea {
     module {
-//        inheritOutputDirs = true
         isDownloadJavadoc = true
         isDownloadSources = true
     }

@@ -75,16 +75,21 @@ val generateChangelogTask = tasks.register("generateChangelog") {
     val changelogFile = layout.buildDirectory.file("CHANGELOG.md")
     outputs.file(changelogFile)
 
-    doLast {
-        val previousTag = findPreviousGitTag()
-        val range = previousTag?.let { "$it..HEAD" } ?: "HEAD"
-        val commits = gitOrNull(
-            "log",
-            "--date=format:%d %b %Y",
-            "--pretty=%s - **%an** (%ad)",
-            range,
-        )
-        val changelog =
+    // Resolve the changelog text at configuration time. The git lookups run through providers.exec
+    // (so they're declared configuration-cache inputs and invalidate the entry when HEAD moves), and
+    // the result is captured as a plain String. The doLast action below must NOT reference any Gradle
+    // script object — findPreviousGitTag()/gitOrNull()/displayName all do — because the configuration
+    // cache cannot serialize "Gradle script object references".
+    val changelogText: String =
+        if (generateChangelog) {
+            val previousTag = findPreviousGitTag()
+            val range = previousTag?.let { "$it..HEAD" } ?: "HEAD"
+            val commits = gitOrNull(
+                "log",
+                "--date=format:%d %b %Y",
+                "--pretty=%s - **%an** (%ad)",
+                range,
+            )
             when {
                 commits?.isNotBlank() == true -> {
                     val prefix =
@@ -98,10 +103,14 @@ val generateChangelogTask = tasks.register("generateChangelog") {
                 else ->
                     "Changes in $displayName.\n\nNo git history was available to generate a detailed changelog."
             }
+        } else {
+            ""
+        }
 
+    doLast {
         changelogFile.get().asFile.apply {
             parentFile.mkdirs()
-            writeText(changelog, Charsets.UTF_8)
+            writeText(changelogText, Charsets.UTF_8)
         }
     }
 }
@@ -285,13 +294,17 @@ tasks.register("publishModRelease") {
     description = "Publishes the mod to the configured release targets."
     dependsOn(publishTargets.map { it.task })
 
+    // Snapshot the target names into a plain local list at configuration time; the doFirst action
+    // must not capture `publishTargets` (a script-level val), or the configuration cache fails with
+    // "cannot serialize Gradle script object references".
+    val targetNames = publishTargets.map { it.name }
     doFirst {
-        if (publishTargets.isEmpty()) {
+        if (targetNames.isEmpty()) {
             throw GradleException(
                 "No publish targets are configured. Set customMavenPublishUrl, or provide a Modrinth/CurseForge project ID with its API key (or deploymentDebug=true).",
             )
         }
-        logger.lifecycle("Publishing mod release to: ${publishTargets.joinToString { it.name }}")
+        logger.lifecycle("Publishing mod release to: ${targetNames.joinToString()}")
     }
 }
 

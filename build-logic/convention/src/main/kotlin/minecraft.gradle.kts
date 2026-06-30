@@ -27,7 +27,6 @@ minecraft {
     username = devUserName
 
     if (useLwjgl3ify) {
-        mainLwjglVersion = 3
         lwjgl3Version = libs.versions.lwjgl3.get()
     }
 
@@ -77,13 +76,13 @@ if (generateTags) {
 
 // AccessTransformers
 if (accessTransformers.isNotEmpty()) {
-    val atFiles = accessTransformers.split(";")
-        .map { file("src/main/resources/$it") }
-        .onEach { if (!it.exists()) throw GradleException("Could not find accessTransformer file \"$it\"!") }
 
     // This will apply ATs to both minecraft & forge sources
     tasks.applyJST {
-        accessTransformerFiles.from(atFiles)
+        accessTransformerFiles.from(
+            accessTransformers.split(";")
+            .map { file("src/main/resources/$it") }
+            .onEach { if (!it.exists()) throw GradleException("Could not find accessTransformer file \"$it\"!") })
     }
 }
 
@@ -91,27 +90,21 @@ if (accessTransformers.isNotEmpty()) {
 tasks.processResources {
     if (!useMixin) exclude("*mixin*.json")
 
+    val templateTokens = mapOf(
+        "mod_id" to modId,
+        "mod_name" to modName,
+        "mod_version" to modVersion,
+        "mc_version" to minecraftVersion,
+        "mod_group" to modGroup,
+        "mixin_package" to mixinPackage,
+        "mixin_refmap" to mixinRefmap,
+        "mixin_min_version" to libs.versions.mixin.get(),
+        "mixinextras_min_version" to libs.versions.mixinExtras.get(),
+    )
+
     // Template files
-    filesMatching(
-        listOf(
-            "mcmod.info",
-            "pack.mcmeta",
-            "*mixin*.json",
-        ),
-    ) {
-        filter<ReplaceTokens>(
-            "tokens" to mapOf(
-                "mod_id" to modId,
-                "mod_name" to modName,
-                "mod_version" to modVersion,
-                "mc_version" to minecraftVersion,
-                "mod_group" to modGroup,
-                "mixin_package" to mixinPackage,
-                "mixin_refmap" to mixinRefmap,
-                "mixin_min_version" to libs.versions.mixin.get(),
-                "mixinextras_min_version" to libs.versions.mixinExtras.get(),
-            )
-        )
+    filesMatching(listOf("mcmod.info", "pack.mcmeta", "*mixin*.json")) {
+        filter<ReplaceTokens>("tokens" to templateTokens)
     }
 
     rename("(.+_at.cfg)", "META-INF/$1")
@@ -140,9 +133,7 @@ dependencies {
     runtimeOnly(libs.mixinbooter) { isTransitive = false }
     patchedMinecraft(libs.launchWrapper) { isTransitive = false }
 
-    if (enableJvmdg) {
-        compileOnly(libs.java8UnsupportedShim)
-    }
+    compileOnly(libs.java8UnsupportedShim)
 
     if (useLwjgl3ify) {
         patchedMinecraft(libs.java8UnsupportedShim)
@@ -169,24 +160,18 @@ dependencies {
 }
 
 // Interface injection
-val interfaceFile = "src/injectedInterfaces/interfaces.json"
-if (file(interfaceFile).exists()) {
-    tasks.applyJST.configure {
-        interfaceInjectionConfigs.setFrom(interfaceFile)
+val interfaceFilePath = "src/injectedInterfaces/interfaces.json"
+tasks.applyJST.configure {
+    if (file(interfaceFilePath).exists()) {
+        interfaceInjectionConfigs.setFrom(interfaceFilePath)
     }
 }
 
-// Lwjgl3ify: register "modern Java" run tasks.
-//
-// These used to be a bespoke RunHotswappableModernJavaMinecraftTask subclass, but everything
-// that class did is just configuration on top of a stock RunMinecraftTask, so we inline it here
-// as plain task registrations instead of carrying a custom type.
 if (useLwjgl3ify) {
-
     // HotSwapAgent gives enhanced class redefinition while running under a debugger.
     // The old task exposed this via a `--hotswap` CLI @Option; without a custom task type we
     // instead read it from the HOTSWAP env var (its original default) or a `-Photswap` Gradle property.
-    val enableHotswap = System.getenv("HOTSWAP").toBoolean() ||
+    val enableHotswap = providers.environmentVariable("HOTSWAP").orNull.toBoolean() ||
             providers.gradleProperty("hotswap").orNull.toBoolean()
 
     // JVM args toggled on only when hotswapping.
@@ -243,7 +228,7 @@ if (useLwjgl3ify) {
         "--add-opens", "java.base/java.time.temporal=ALL-UNNAMED",
         "--add-opens", "java.base/java.time.zone=ALL-UNNAMED",
         "--add-opens", "java.base/java.time=ALL-UNNAMED",
-        "--add-opens", "java.base/java.util.concurrent.atomics=ALL-UNNAMED",
+        "--add-opens", "java.base/java.util.concurrent.atomic=ALL-UNNAMED",
         "--add-opens", "java.base/java.util.concurrent.locks=ALL-UNNAMED",
         "--add-opens", "java.base/java.util.jar=ALL-UNNAMED",
         "--add-opens", "java.base/java.util.zip=ALL-UNNAMED",
@@ -266,8 +251,8 @@ if (useLwjgl3ify) {
         group = "Modded Minecraft"
         description = "Runs the modded ${side.name.lowercase()} using modern Java and lwjgl3ify"
 
-        // lwjgl3ify only works on the lwjgl3 natives.
-        lwjglVersion.convention(3)
+        // Lwjgl3ify only works on the lwjgl3 natives.
+        lwjglVersion.set(3)
 
         // Modern-Java JVM args, plus the hotswap args when enabled.
         extraJvmArgs.addAll(modernJavaJvmArgs)
@@ -304,14 +289,14 @@ if (useLwjgl3ify) {
         systemProperty("gradlestart.bouncerClient", "com.gtnewhorizons.retrofuturabootstrap.Main")
         systemProperty("gradlestart.bouncerServer", "com.gtnewhorizons.retrofuturabootstrap.Main")
 
-        // When mixins are enabled and we're hotswapping, attach mixinbooter as a -javaagent so
+        // When mixins & hotswap are enabled, attach mixinbooter as a -javaagent so that
         // mixin'd classes can be redefined too. Resolved lazily via a detached, non-transitive config.
         mixinHotswapJavaAgent?.let { mixinCfg ->
             extraJvmArgs.addAll(
                 mixinCfg.elements.map { elements ->
                     val jar = elements.single().asFile
                     listOf("-javaagent:${jar.absolutePath}")
-                },
+                }
             )
         }
     }
@@ -323,17 +308,24 @@ if (useLwjgl3ify) {
         vendor.set(JvmVendorSpec.JETBRAINS)
     }
 
-    // Register + configure separately: the reified register<T>(name, vararg constructorArgs)
-    // overload can't also take a trailing configuration lambda, so we configure in a second step.
-    val runClientModernJava = tasks.register<RunMinecraftTask>("runClientModernJava", Distribution.CLIENT)
-    runClientModernJava {
+    tasks.register<RunMinecraftTask>("runClientModernJava", Distribution.CLIENT) {
+        description = "Runs the modded client using modern Java and lwjgl3ify"
         configureModernJava()
         javaLauncher = modernJavaLauncher
     }
 
-    val runServerModernJava = tasks.register<RunMinecraftTask>("runServerModernJava", Distribution.DEDICATED_SERVER)
-    runServerModernJava {
+    tasks.register<RunMinecraftTask>("runServerModernJava", Distribution.DEDICATED_SERVER) {
+        description = "Runs the modded server using modern Java and lwjgl3ify"
         configureModernJava()
         javaLauncher = modernJavaLauncher
     }
 }
+
+// Have to be private to avoid ambiguity
+@Suppress("TaskMissingDescription")
+private inline fun <reified T : Task> TaskContainer.register(
+    name: String,
+    vararg arguments: Any,
+    noinline configurationAction: T.() -> Unit
+): TaskProvider<T> = register<T>(name, *arguments).apply { configure(configurationAction) }
+

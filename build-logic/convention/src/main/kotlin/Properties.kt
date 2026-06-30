@@ -14,7 +14,6 @@ val Project.minecraftVersion: String by getter
 val Project.devUserName: String by getter
 
 val Project.extJavaArgs: String by getter
-val Project.enableJvmdg: Boolean by getter
 val Project.useLwjgl3ify: Boolean by getter
 
 val Project.generateTags: Boolean by getter
