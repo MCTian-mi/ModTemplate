@@ -15,10 +15,10 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.pcollections.TreePSet;
 
-@Mod(modid = Tags.MODID, version = Tags.VERSION, name = Tags.MODNAME, acceptedMinecraftVersions = "[1.12.2]")
+@Mod(modid = Tags.MOD_ID, version = Tags.MOD_VERSION, name = Tags.MOD_NAME, acceptedMinecraftVersions = Tags.MC_VERSION)
 public class MyMod {
 
-    public static final Logger LOGGER = LogManager.getLogger(Tags.MODID);
+    public static final Logger LOGGER = LogManager.getLogger(Tags.MOD_ID);
 
     @EventHandler
     // preInit "Run before anything else. Read your config, create blocks, items, etc. (Remove if not needed)

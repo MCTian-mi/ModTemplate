@@ -68,9 +68,10 @@ if (generateTags) {
         className("Tags")
         packageName(modGroup)
         useJavaOutput()
-        buildConfigField("MODID", modId)
-        buildConfigField("MODNAME", modName)
-        buildConfigField("VERSION", modVersion)
+        buildConfigField("MOD_ID", modId)
+        buildConfigField("MOD_NAME", modName)
+        buildConfigField("MOD_VERSION", modVersion)
+        buildConfigField("MC_VERSION", "[$minecraftVersion]")
     }
 }
 
@@ -86,7 +87,6 @@ if (accessTransformers.isNotEmpty()) {
     }
 }
 
-// Copy AT files to where it should be
 tasks.processResources {
     if (!useMixin) exclude("*mixin*.json")
 
@@ -107,6 +107,7 @@ tasks.processResources {
         filter<ReplaceTokens>("tokens" to templateTokens)
     }
 
+    // Copy AT files to where it should be
     rename("(.+_at.cfg)", "META-INF/$1")
 }
 
@@ -168,11 +169,6 @@ tasks.applyJST.configure {
 }
 
 if (useLwjgl3ify) {
-    // HotSwapAgent gives enhanced class redefinition while running under a debugger.
-    // The old task exposed this via a `--hotswap` CLI @Option; without a custom task type we
-    // instead read it from the HOTSWAP env var (its original default) or a `-Photswap` Gradle property.
-    val enableHotswap = providers.environmentVariable("HOTSWAP").orNull.toBoolean() ||
-            providers.gradleProperty("hotswap").orNull.toBoolean()
 
     // JVM args toggled on only when hotswapping.
     val hotswapJvmArgs = listOf(

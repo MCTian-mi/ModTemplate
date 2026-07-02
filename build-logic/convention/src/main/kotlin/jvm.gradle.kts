@@ -24,5 +24,4 @@ java {
         // Azul covers the most platforms, crucially including macOS arm64
         vendor.set(JvmVendorSpec.AZUL)
     }
-    withSourcesJar()
 }

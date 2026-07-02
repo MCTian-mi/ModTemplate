@@ -2,7 +2,7 @@ import com.gtnewhorizons.retrofuturagradle.minecraft.RunMinecraftTask
 import xyz.wagyourtail.jvmdg.gradle.task.DowngradeJar
 import xyz.wagyourtail.jvmdg.gradle.task.ShadeJar
 import xyz.wagyourtail.jvmdg.gradle.task.files.DowngradeFiles
-import java.io.Serializable
+import java.io.Serializable as JSerializable
 
 plugins {
     alias(libs.plugins.jvmDowngrader)
@@ -20,7 +20,7 @@ tasks.withType<DowngradeJar>().configureEach { logLevel.set("FATAL") }
 tasks.withType<DowngradeFiles>().configureEach { logLevel.set("FATAL") }
 
 jvmdg.apply {
-    shadePath.set(ConstantShadePath(jvmdgShadowPath.ifEmpty { defaultShadowPath }))
+    shadePath = ConstantShadePath(jvmdgShadowPath)
     dg(shadowDowngrade)
 }
 
@@ -65,6 +65,6 @@ tasks.compileInjectedInterfacesJava {
     } // TODO)) should this be downgraded?
 }
 
-class ConstantShadePath(private val path: String) : (String) -> String, Serializable {
+private class ConstantShadePath(private val path: String) : (String) -> String, JSerializable {
     override fun invoke(fileName: String): String = path
 }

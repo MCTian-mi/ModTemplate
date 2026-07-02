@@ -16,4 +16,8 @@ idea {
         isDownloadJavadoc = true
         isDownloadSources = true
     }
+
+    project {
+        setLanguageLevel(JavaVersion.VERSION_25)
+    }
 }
