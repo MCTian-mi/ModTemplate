@@ -9,7 +9,10 @@ import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.event.RegistryEvent;
 import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.common.Mod.EventHandler;
-import net.minecraftforge.fml.common.event.*;
+import net.minecraftforge.fml.common.event.FMLInitializationEvent;
+import net.minecraftforge.fml.common.event.FMLPostInitializationEvent;
+import net.minecraftforge.fml.common.event.FMLPreInitializationEvent;
+import net.minecraftforge.fml.common.event.FMLServerStartingEvent;
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -25,8 +28,8 @@ public class MyMod {
     public void preInit(FMLPreInitializationEvent event) {
         // register to the event bus so that we can listen to events
         MinecraftForge.EVENT_BUS.register(this);
-        var x = new Result.Ok<>(event);
-        LOGGER.info(x.mapOr("fail", FMLEvent::description));
+//        var x = new Result.Ok<>(event);
+//        LOGGER.info(x.mapOr("fail", FMLEvent::description));
         TreePSet.of(1,2,3);
         IO.println(IntMath.binomial(6, 2));
         IO.println(GuiIngameForge.WHITE);

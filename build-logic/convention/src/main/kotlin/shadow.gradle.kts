@@ -12,6 +12,7 @@ configurations.implementation {
 tasks.shadowJar {
     archiveClassifier = "shadowed"
 
+    filesMatching("**/module-info.class") { exclude() }
     dependencies {
         exclude(dependency("org.jspecify:jspecify:.*"))
         exclude(dependency("org.jetbrains:annotations:.*"))

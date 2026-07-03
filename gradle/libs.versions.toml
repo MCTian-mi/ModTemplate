@@ -9,7 +9,7 @@ buildconfig = "6.0.10"
 accesstransformers = "5.0.3"
 
 # Test platform
-junit = "6.1.0"
+junit = "5.14.4"
 
 # Referred directly in minecraft.grale.kts
 lwjgl3 = "3.4.1"
@@ -40,6 +40,8 @@ buildconfig = { id = "com.github.gmazzo.buildconfig", version.ref = "buildconfig
 accesstransformers = { id = "net.minecraftforge.accesstransformers", version.ref = "accesstransformers" }
 
 [libraries]
+jvmdowngrader-javaApi = { module = "xyz.wagyourtail.jvmdowngrader:jvmdowngrader-java-api", version.ref = "jvmDowngrader" }
+
 junit-bom = { module = "org.junit:junit-bom", version.ref = "junit" }
 junit-jupiter = { module = "org.junit.jupiter:junit-jupiter" }
 junit-platform-launcher = { module = "org.junit.platform:junit-platform-launcher" }

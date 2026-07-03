@@ -42,6 +42,8 @@ but uses a modern, modular **build-logic** setup instead of a single `build.grad
 - **Modular build logic** — Kotlin DSL convention plugins in `build-logic/convention`.
 - **Version catalogs** for plugins and dependencies.
 - **Interface injection** via RetroFuturaGradle's `applyJST` task.
+- **Java 8 test runtime** — tests are compiled on Java 25, downgraded to Java 8 bytecode, and
+  executed on a Java 8 JVM to prove the downgrade is correct end-to-end.
 - **Mixins, Access Transformers, Coremods, Shadow, JUnit, and GitHub Actions
   Publishing** out of the box.
 
@@ -101,7 +103,7 @@ but uses a modern, modular **build-logic** setup instead of a single `build.grad
 │           ├── publish.gradle.kts      # CurseForge / Modrinth / Maven / GitHub
 │           ├── shadow.gradle.kts       # Shadow + dependency relocation
 │           ├── jvmdg.gradle.kts        # JvmDowngrader integration
-│           ├── test.gradle.kts         # JUnit 6 setup
+│           ├── test.gradle.kts         # JUnit 5 setup (runs on Java 8)
 │           ├── idea.gradle.kts         # IntelliJ IDEA project settings
 │           ├── jvm.gradle.kts          # Java toolchain (Java 25)
 │           ├── repositories.gradle.kts # Maven repositories
@@ -147,7 +149,7 @@ Most settings live in `gradle.properties`. Below are the commonly edited options
 | `useMixin`           | Enable MixinBooter support. Default `false`.                                                   |
 | `mixinPackage`       | Package containing all your mixin classes (required if `useMixin=true`).                       |
 | `coreModClass`       | Fully-qualified `IFMLLoadingPlugin` class if you use a core mod.                                |
-| `enableJUnit`        | Enable JUnit 6 test platform. Default `true`.                                                  |
+| `enableJUnit`        | Enable JUnit 5 test platform. Default `true`.                                                  |
 | `enableSpotless`     | Enable Spotless code formatting. Default `false`.                                              |
 
 Publishing options are documented in the [Publishing](#publishing) section.
@@ -212,12 +214,34 @@ and include Modrinth, CurseMaven, CleanroomMC, BlameJared, GTNH, GTCEu, Maven Ce
 | `./gradlew runServer`           | Launch the modded dedicated server on Java 8.                      |
 | `./gradlew runClientModernJava` | Launch the client on modern Java (25) via lwjgl3ify.               |
 | `./gradlew runServerModernJava` | Launch the server on modern Java (25) via lwjgl3ify.               |
-| `./gradlew test`                | Run JUnit tests.                                                   |
+| `./gradlew test`                | Run JUnit tests on a real Java 8 JVM (tests are compiled on Java 25 and downgraded first).       |
 | `./gradlew reobfJar`            | Produce the obfuscated release jar.                                |
 | `./gradlew curseforge`          | Publish to CurseForge (requires env vars).                         |
 | `./gradlew modrinth`            | Publish to Modrinth (requires env vars).                           |
 | `./gradlew publish`             | Publish to a custom Maven repository (requires env vars).          |
 | `./gradlew build --build-cache` | Build with Gradle build cache enabled.                             |
+
+---
+
+## Testing
+
+Tests are written with JUnit 5 and live under `src/test/java`. Because the mod is compiled on Java 25
+but ships as Java 8 bytecode, the build also runs tests on a **real Java 8 JVM**:
+
+1. `compileTestJava` compiles test sources with the Java 25 toolchain.
+2. `downgradeTestClasses` rewrites the compiled test bytecode to Java 8.
+3. `downgradeMainClasses` rewrites the project's main bytecode to Java 8 so tests can load it.
+4. `test` launches the JUnit Platform on an automatically-provisioned **Azul Zulu Java 8** toolchain
+   using the downgraded classes.
+
+This proves the JvmDowngrader output is actually runnable on Java 8, not just syntactically valid.
+
+```bash
+./gradlew test
+```
+
+Tests can reference Minecraft/Forge classes from `patchedMc` and `mcLauncher`, so you can write
+smoke tests that exercise mod code against the real 1.12.2 runtime.
 
 ---
 
@@ -399,7 +423,7 @@ important ways.
 | **Compile toolchain**        | Java 17.                                                                           | Java 25 (Azul Zulu via Foojay).                                                                                  |
 | **Dependency management**    | Hand-edited dependency blocks.                                                     | Gradle version catalogs (`libs.versions.toml` / `deps.versions.toml`).                                           |
 | **Mixin stack**              | MixinBooter 8 + Unimix.                                                            | MixinBooter 11.1.                                                                                                |
-| **JUnit**                    | JUnit 5.                                                                           | JUnit 6.                                                                                                         |
+| **JUnit**                    | JUnit 5.                                                                           | JUnit 5 (tests run on Java 8 via downgraded bytecode).                                                           |
 | **LWJGL3ify**                | Optional / manually configured.                                                    | Enabled by default (`useLwjgl3ify=true`) with dedicated modern-Java run tasks.                                   |
 | **CI/CD**                    | Minimal / user-provided.                                                           | GitHub Actions workflows for build and publish, including GitHub Releases, CurseForge, Modrinth, and Maven.      |
 | **Version catalogs**         | Not used.                                                                          | Used for plugins and libraries.                                                                                  |

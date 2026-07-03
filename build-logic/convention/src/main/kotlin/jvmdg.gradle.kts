@@ -2,6 +2,7 @@ import com.gtnewhorizons.retrofuturagradle.minecraft.RunMinecraftTask
 import xyz.wagyourtail.jvmdg.gradle.task.DowngradeJar
 import xyz.wagyourtail.jvmdg.gradle.task.ShadeJar
 import xyz.wagyourtail.jvmdg.gradle.task.files.DowngradeFiles
+import java.util.*
 import java.io.Serializable as JSerializable
 
 plugins {
@@ -26,35 +27,44 @@ jvmdg.apply {
 
 val downgradeRunJar = tasks.register<DowngradeJar>("downgradeRunJar") {
     description = "Downgrade the slim project jar for Minecraft run tasks"
-    dependsOn(tasks.jar)
     inputFile = tasks.jar.flatMap { it.archiveFile }
     archiveClassifier = "run-downgraded"
 }
 
 val shadeRunDowngradedApi = tasks.register<ShadeJar>("shadeRunDowngradedApi") {
     description = "Shade JvmDowngrader API stubs into the downgraded run jar"
-    dependsOn(downgradeRunJar)
     inputFile = downgradeRunJar.flatMap { it.archiveFile }
     archiveClassifier = "run-downgraded-shaded"
 }
 
-val downgradeTestClasses = tasks.register<DowngradeFiles>("downgradeTestClasses") {
-    description = "Downgrade classes in src/tests"
-    inputCollection = files(sourceSets["test"].output.classesDirs, sourceSets["api"].output.classesDirs)
-    dependsOn(tasks.testClasses, tasks.apiClasses)
-}
+val dgTest = downgradeSourceSet("test")
+val dgMain = downgradeSourceSet("main")
+val dgApi = downgradeSourceSet("api")
 
 tasks.test {
-    dependsOn(tasks.shadeDowngradedApi, downgradeTestClasses)
-} // TODO)) fix tests
+    // ensure tests are run with java8
+    javaLauncher = javaToolchains.launcherFor {
+        languageVersion.set(JavaLanguageVersion.of(8))
+        vendor.set(JvmVendorSpec.AZUL)
+    }
 
-tasks.reobfJar { inputJar.set(tasks.shadeDowngradedApi.flatMap { it.archiveFile }) }
+    testClassesDirs = layout.files(dgTest.outputs)
+
+    classpath = classpath
+        .plus(layout.files(dgTest.outputs, dgMain.outputs, dgApi.outputs))
+        .minus(layout.files(sourceSets.main.classesDirs, sourceSets.test.classesDirs, sourceSets.api.classesDirs))
+}
+
+dependencies {
+    testImplementation(variantOf(libs.jvmdowngrader.javaApi) { classifier("downgraded-8") })
+}
+
+tasks.reobfJar { inputJar = tasks.shadeDowngradedApi.flatMap { it.archiveFile } }
 
 // RunObf* tasks are intentionally excluded, since they relay on reobfJar
 tasks.withType<RunMinecraftTask>().configureEach {
     if (!systemProperties.contains("retrofuturagradle.reobfDev")) {
-        dependsOn(shadeRunDowngradedApi)
-        classpath = classpath - files(tasks.jar) + files(shadeRunDowngradedApi) + files(shadowDowngrade)
+        classpath = classpath - layout.files(tasks.jar) + layout.files(shadeRunDowngradedApi, shadowDowngrade)
     }
 }
 
@@ -62,8 +72,25 @@ tasks.compileInjectedInterfacesJava {
     javaCompiler = javaToolchains.compilerFor {
         languageVersion.set(JavaLanguageVersion.of(8))
         vendor.set(JvmVendorSpec.AZUL)
-    } // TODO)) should this be downgraded?
+    }
 }
+
+private fun downgradeSourceSet(name: String): TaskProvider<DowngradeFiles> {
+    val capitalizedName = name.replaceFirstChar {
+        if (it.isLowerCase()) it.titlecase(Locale.getDefault()) else it.toString()
+    }
+
+    return tasks.register<DowngradeFiles>("downgrade${capitalizedName}") {
+        description = "Downgrade the $name sourceSet"
+        inputCollection = objects.fileCollection().from(sourceSets.named(name).classesDirs)
+    }
+}
+
+private val TaskProvider<DowngradeFiles>.outputs: Provider<FileCollection>
+    get() = map { it.outputCollection }
+
+private val Provider<SourceSet>.classesDirs: Provider<FileCollection>
+    get() = map { it.output.classesDirs }
 
 private class ConstantShadePath(private val path: String) : (String) -> String, JSerializable {
     override fun invoke(fileName: String): String = path
