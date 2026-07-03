@@ -16,14 +16,21 @@ configurations.compileOnly {
     extendsFrom(shadowDowngrade)
 }
 
-// JvmDowngrader
-tasks.withType<DowngradeJar>().configureEach { logLevel.set("FATAL") }
-tasks.withType<DowngradeFiles>().configureEach { logLevel.set("FATAL") }
+dependencies {
+    testImplementation(variantOf(libs.jvmdowngrader.javaApi) { classifier("downgraded-8") })
+}
 
 jvmdg.apply {
     shadePath = ConstantShadePath(jvmdgShadowPath)
     dg(shadowDowngrade)
 }
+
+tasks.withType<DowngradeJar>().configureEach { logLevel.set("FATAL") }
+tasks.withType<DowngradeFiles>().configureEach { logLevel.set("FATAL") }
+
+val dgTest = downgradeSourceSet("test")
+val dgMain = downgradeSourceSet("main")
+val dgApi = downgradeSourceSet("api")
 
 val downgradeRunJar = tasks.register<DowngradeJar>("downgradeRunJar") {
     description = "Downgrade the slim project jar for Minecraft run tasks"
@@ -37,9 +44,14 @@ val shadeRunDowngradedApi = tasks.register<ShadeJar>("shadeRunDowngradedApi") {
     archiveClassifier = "run-downgraded-shaded"
 }
 
-val dgTest = downgradeSourceSet("test")
-val dgMain = downgradeSourceSet("main")
-val dgApi = downgradeSourceSet("api")
+tasks.reobfJar { inputJar = tasks.shadeDowngradedApi.flatMap { it.archiveFile } }
+
+// RunObf* tasks are intentionally excluded, since they relay on reobfJar
+tasks.withType<RunMinecraftTask>().configureEach {
+    if (!systemProperties.contains("retrofuturagradle.reobfDev")) {
+        classpath = classpath - layout.files(tasks.jar) + layout.files(shadeRunDowngradedApi, shadowDowngrade)
+    }
+}
 
 tasks.test {
     // ensure tests are run with java8
@@ -53,19 +65,6 @@ tasks.test {
     classpath = classpath
         .plus(layout.files(dgTest.outputs, dgMain.outputs, dgApi.outputs))
         .minus(layout.files(sourceSets.main.classesDirs, sourceSets.test.classesDirs, sourceSets.api.classesDirs))
-}
-
-dependencies {
-    testImplementation(variantOf(libs.jvmdowngrader.javaApi) { classifier("downgraded-8") })
-}
-
-tasks.reobfJar { inputJar = tasks.shadeDowngradedApi.flatMap { it.archiveFile } }
-
-// RunObf* tasks are intentionally excluded, since they relay on reobfJar
-tasks.withType<RunMinecraftTask>().configureEach {
-    if (!systemProperties.contains("retrofuturagradle.reobfDev")) {
-        classpath = classpath - layout.files(tasks.jar) + layout.files(shadeRunDowngradedApi, shadowDowngrade)
-    }
 }
 
 tasks.compileInjectedInterfacesJava {

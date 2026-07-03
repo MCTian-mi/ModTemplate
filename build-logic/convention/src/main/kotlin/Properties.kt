@@ -65,7 +65,7 @@ val Project.deploymentDebug: Boolean by flagOrEnv("DEPLOYMENT_DEBUG")
 
 // Derived properties.
 val Project.modPath: String by optional { modGroup.replace('.', '/') }
-val Project.defaultShadowPath: String by optional { "${modPath}/shadow/" }
+val Project.defaultShadowPath: String by optional { "${modPath}/shadow" }
 
 
 // Required property getters, panics if unset
