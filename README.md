@@ -136,19 +136,19 @@ Most settings live in `gradle.properties`. Below are the commonly edited options
 | -------------------- | ---------------------------------------------------------------------------------------------- |
 | `modName`            | Human-readable mod name.                                                                       |
 | `modId`              | Lowercase, no spaces, unique mod identifier (< 64 chars).                                      |
-| `modGroup`           | Root Java package for your mod, e.g.`com.yourname.modid`.                                      |
+| `modGroup`           | Root Java package for your mod, e.g. `com.yourname.modid`.                                     |
 | `modVersion`         | Mod version. Leave blank to use the latest git tag (`git describe`).                           |
 | `archiveName`        | Base name of produced jars.                                                                    |
-| `minecraftVersion`   | Minecraft version. Currently locked to`1.12.2`.                                                |
-| `devUserName`        | In-game username used by`runClient`. Defaults to `Developer`.                                  |
-| `useLwjgl3ify`       | Enable modern-Java run tasks via lwjgl3ify. Default`true`.                                     |
-| `generateTags`       | Generate a`Tags` class with `MOD_ID`, `MOD_NAME`, `MOD_VERSION`, `MC_VERSION`. Default `true`. |
-| `accessTransformers` | Semicolon-separated list of AT cfg files in`src/main/resources/`.                              |
-| `useMixin`           | Enable MixinBooter support. Default`false`.                                                    |
-| `mixinPackage`       | Package containing all your mixin classes (required if`useMixin=true`).                        |
-| `coreModClass`       | Fully-qualified`IFMLLoadingPlugin` class if you use a core mod.                                |
-| `enableJUnit`        | Enable JUnit 6 test platform. Default`true`.                                                   |
-| `enableSpotless`     | Enable Spotless code formatting. Default`false`.                                               |
+| `minecraftVersion`   | Minecraft version. Currently locked to `1.12.2`.                                               |
+| `devUserName`        | In-game username used by `runClient`. Defaults to `Developer`.                                 |
+| `useLwjgl3ify`       | Enable modern-Java run tasks via lwjgl3ify. Default `true`.                                     |
+| `generateTags`       | Generate a `Tags` class with `MOD_ID`, `MOD_NAME`, `MOD_VERSION`, `MC_VERSION`. Default `true`.|
+| `accessTransformers` | Semicolon-separated list of AT cfg files in `src/main/resources/`.                             |
+| `useMixin`           | Enable MixinBooter support. Default `false`.                                                   |
+| `mixinPackage`       | Package containing all your mixin classes (required if `useMixin=true`).                       |
+| `coreModClass`       | Fully-qualified `IFMLLoadingPlugin` class if you use a core mod.                                |
+| `enableJUnit`        | Enable JUnit 6 test platform. Default `true`.                                                  |
+| `enableSpotless`     | Enable Spotless code formatting. Default `false`.                                              |
 
 Publishing options are documented in the [Publishing](#publishing) section.
 
@@ -393,9 +393,9 @@ important ways.
 
 | Aspect                       | GTCEu Buildscripts                                                                 | This template (MyMod)                                                                                            |
 | ---------------------------- | ---------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
-| **Build script structure**   | One self-contained, auto-updating`build.gradle` with an `updateBuildScript` task.  | Modular`build-logic` convention plugins written in Kotlin DSL.                                                   |
-| **Updating**                 | Run`./gradlew updateBuildScript` to pull the latest build script.                  | Update by merging upstream`build-logic` changes manually or via git.                                             |
-| **Modern language features** | Uses[Jabel](https://github.com/bsideup/jabel) to compile Java 17 syntax to Java 8. | Uses[JvmDowngrader](https://github.com/uniminers/jvmdowngrader) to downgrade a Java 25 build to Java 8 bytecode. |
+| **Build script structure**   | One self-contained, auto-updating `build.gradle` with an `updateBuildScript` task.  | Modular `build-logic` convention plugins written in Kotlin DSL.                                                   |
+| **Updating**                 | Run `./gradlew updateBuildScript` to pull the latest build script.                  | Update by merging upstream `build-logic` changes manually or via git.                                             |
+| **Modern language features** | Uses [Jabel](https://github.com/bsideup/jabel) to compile Java 17 syntax to Java 8. | Uses [JvmDowngrader](https://github.com/uniminers/jvmdowngrader) to downgrade a Java 25 build to Java 8 bytecode. |
 | **Compile toolchain**        | Java 17.                                                                           | Java 25 (Azul Zulu via Foojay).                                                                                  |
 | **Dependency management**    | Hand-edited dependency blocks.                                                     | Gradle version catalogs (`libs.versions.toml` / `deps.versions.toml`).                                           |
 | **Mixin stack**              | MixinBooter 8 + Unimix.                                                            | MixinBooter 11.1.                                                                                                |

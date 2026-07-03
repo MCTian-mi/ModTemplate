@@ -54,7 +54,7 @@ if (publishToMaven) {
 
 // Modrinth
 modrinth {
-    token = modrinthApiKey
+    token = if (deploymentDebug) "DEBUG_TOKEN" else modrinthApiKey
     projectId = modrinthProjectId
     versionName = releaseName
     versionNumber = modVersion
@@ -96,7 +96,7 @@ val publishToCurseForgeTask = tasks.register<TaskPublishCurseForge>("curseforge"
 
     disableVersionDetection()
     debugMode = deploymentDebug
-    apiToken = curseForgeApiKey
+    apiToken = if (deploymentDebug) "DEBUG_TOKEN" else curseForgeApiKey
 
     with(upload(curseForgeProjectId, tasks.reobfJar)) {
         displayName = releaseName

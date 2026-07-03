@@ -192,7 +192,7 @@ if (useLwjgl3ify) {
     val modernJavaJvmArgs = listOf(
         "-Dfile.encoding=UTF-8",
         "-Djava.system.class.loader=com.gtnewhorizons.retrofuturabootstrap.RfbSystemClassLoader",
-        // NB: no "-Djava.security.manager=allow" here. Java 24+ (JEP 486) permanently disabled the
+        // No "-Djava.security.manager=allow" here. Java 24+ (JEP 486) permanently disabled the
         // Security Manager, so that flag now hard-fails at VM init ("Enabling a Security Manager is
         // not supported"). It's safe to omit on the modern-Java toolchain.
         "--enable-native-access=ALL-UNNAMED",

@@ -37,23 +37,23 @@ val Project.relocateShadowedDependencies: Boolean by flag(default = true)
 val Project.separateRunDirectories: Boolean by flag(default = false)
 
 val Project.publishToModrinth: Boolean by flagOrEnv("PUBLISH_TO_MODRINTH")
-val Project.modrinthApiKey: String by requiredOrEnvIf("MODRINTH_API_KEY") { publishToModrinth || deploymentDebug }
-val Project.modrinthProjectId: String by requiredOrEnvIf("MODRINTH_PROJECT_ID") { publishToModrinth || deploymentDebug }
+val Project.modrinthApiKey: String by requiredOrEnvIf("MODRINTH_API_KEY") { publishToModrinth }
+val Project.modrinthProjectId: String by requiredIf { publishToModrinth }
 val Project.modrinthRelations: String by optional()
 
 val Project.publishToCurseForge: Boolean by flagOrEnv("PUBLISH_TO_CURSEFORGE")
-val Project.curseForgeApiKey: String by requiredOrEnvIf("CURSEFORGE_API_KEY") { publishToCurseForge || deploymentDebug }
-val Project.curseForgeProjectId: String by requiredOrEnvIf("CURSEFORGE_PROJECT_ID") { publishToCurseForge || deploymentDebug }
+val Project.curseForgeApiKey: String by requiredOrEnvIf("CURSEFORGE_API_KEY") { publishToCurseForge }
+val Project.curseForgeProjectId: String by requiredIf { publishToCurseForge }
 val Project.curseForgeRelations: String by optional()
 
 val Project.releaseType: String by optionalOrEnv("RELEASE_TYPE", default = "release")
 val Project.changelogLocation: String by optionalOrEnv("CHANGELOG_LOCATION", default = "CHANGELOG.md")
 
 val Project.publishToMaven: Boolean by flagOrEnv("PUBLISH_TO_MAVEN")
-val Project.customMavenPublishUrl: String by optional()
+val Project.customMavenPublishUrl: String by requiredIf { publishToMaven }
 val Project.mavenArtifactGroup: String by optional { modGroup.substringBeforeLast(".") }
-val Project.artifactGroupId: String by optionalOrEnv("ARTIFACT_GROUP_ID") { mavenArtifactGroup }
-val Project.mavenArtifactId: String by optionalOrEnv("ARTIFACT_ID") { archiveName }
+val Project.artifactGroupId: String by optional { mavenArtifactGroup }
+val Project.mavenArtifactId: String by optional { archiveName }
 val Project.mavenUser: String by optionalOrEnv("MAVEN_USER")
 val Project.mavenPassword: String by optionalOrEnv("MAVEN_PASSWORD")
 
