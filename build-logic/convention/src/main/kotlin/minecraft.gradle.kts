@@ -151,7 +151,6 @@ dependencies {
         annotationProcessor(libs.asmDebug)
         annotationProcessor(libs.guava)
         annotationProcessor(libs.gson)
-        annotationProcessor(libs.mixinbooter) { isTransitive = false }
         api(libs.mixinbooter) { isTransitive = false }
         modUtils.enableMixins(libs.mixinbooter, mixinRefmap)
     }
