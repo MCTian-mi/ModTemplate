@@ -12,12 +12,14 @@ val Project.versionDisplayFormat: String by required()
 
 val Project.mcVersion: String by required()
 
+// Effective mod version: explicit modVersion, then git describe, then a safe default.
+val Project.effectiveModVersion: String
+    get() = modVersion.ifBlank { gitVersion().get().ensureDigitVersion() }
+
 val Project.modVersion: String by envOrOptional("MOD_VERSION")
 val Project.devUserName: String by optional { "Developer" }
 
 val Project.extJavaArgs: String by optional()
-val Project.useLwjgl3ify: Boolean by flag(default = true)
-val Project.enableHotswap: Boolean by envOrFlag("HOTSWAP", default = true)
 
 val Project.generateTags: Boolean by flag(default = true)
 
@@ -26,13 +28,11 @@ val Project.useMixin: Boolean by flag(default = false)
 val Project.mixinPackage: String by requiredIf { useMixin }
 val Project.mixinRefmap: String by optional { "mixins.$modId.refmap.json" }
 
-val Project.useCoreMod: Boolean by flag { coreModClass.isNotBlank() }
-val Project.coreModClass: String by optional()
-val Project.enableCoreModDebug: Boolean by flag(default = false)
-val Project.forceLoadAsMod: Boolean by flag(default = false)
-
 val Project.minimizeShadowedDependencies: Boolean by flag(default = true)
 val Project.relocateShadowedDependencies: Boolean by flag(default = true)
+
+val Project.renderDocPath: String by envOrOptional("RENDERDOC_LIB")
+val Project.operatingSystem: String by envOrOptional("os.name")
 
 val Project.separateRunDirectories: Boolean by flag(default = false)
 
@@ -61,11 +61,8 @@ val Project.mavenPassword: String by envOrOptional("MAVEN_PASSWORD")
 
 val Project.enableJUnit: Boolean by flag(default = true)
 
-val Project.jvmdgShadowPath: String by optional { defaultShadowPath }
-
 val Project.deploymentDebug: Boolean by envOrFlag("DEPLOYMENT_DEBUG")
 
-// Derived properties.
 val Project.modPath: String by optional { modGroup.replace('.', '/') }
 val Project.defaultShadowPath: String by optional { "${modPath}/shadow" }
 
@@ -188,3 +185,25 @@ private fun flag(default: Boolean = false): ReadOnlyProperty<Project, Boolean> =
 private fun Project.env(name: String): Provider<String> = providers.environmentVariable(name)
 
 private fun Project.gradleProperty(name: String): Provider<String> = providers.gradleProperty(name)
+
+@Suppress("UnstableApiUsage")
+fun Project.gitVersion(): Provider<String> = providers.exec {
+    commandLine(
+        "git",
+        "describe",
+        "--tags",
+        "--always",
+        "--first-parent",
+        "--abbrev=7",
+        "--dirty=.dirty",
+        "--match=*",
+    )
+    workingDir(rootDir)
+    isIgnoreExitValue = true
+}.standardOutput.asText
+    .map { it.trim().removePrefix("v") }
+    .filter { it.isNotEmpty() }
+    .orElse("NO-GIT-VERSION")
+
+private fun String.ensureDigitVersion(): String =
+    if (firstOrNull()?.isDigit() == true) this else "1.0.0-$this"

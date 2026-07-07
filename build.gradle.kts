@@ -3,7 +3,6 @@ plugins {
     alias(conventions.plugins.minecraft)
     alias(conventions.plugins.publish)
     alias(conventions.plugins.shadow)
-    alias(conventions.plugins.jvmdg)
     alias(conventions.plugins.idea)
     alias(conventions.plugins.test)
     alias(conventions.plugins.jvm)
@@ -14,11 +13,13 @@ dependencies {
     compileOnlyApi(deps.annotations)
     testImplementation(deps.assertj.core)
 
-    runtimeOnly(deps.hei)
-    runtimeOnly(deps.theOneProbe)
+    // Mixin annotation processor for compile-time @Shadow/@Inject support
+    if (useMixin) {
+        annotationProcessor(variantOf(libs.mixin) { classifier("processor") })
+    }
 
-    shadowDowngrade(deps.guava)
-    shadowDowngrade(deps.pcollections)
+    // JEI for dev testing
+    modRuntimeOnly(deps.bundles.jei)
 }
 
 configurations {

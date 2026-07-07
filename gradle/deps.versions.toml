@@ -3,19 +3,16 @@ annotations = "26.1.0"
 jspecify = "1.0.0"
 assertj = "3.27.7"
 
-hei = "4.31.2"
-theOneProbe = "1.12-1.4.28"
-
-guava = "33.6.0-jre"
-pcollections = "5.0.0"
+jei = "15.20.0.133"
 
 [libraries]
 annotations = { module = "org.jetbrains:annotations", version.ref = "annotations" }
 jspecify = { module = "org.jspecify:jspecify", version.ref = "jspecify" }
 assertj-core = { module = "org.assertj:assertj-core", version.ref = "assertj" }
 
-hei = { module = "mezz:jei", version.ref = "hei" }
-theOneProbe = { module = "maven.modrinth:the-one-probe", version.ref = "theOneProbe" }
+jei-common-api = { module = "mezz.jei:jei-1.20.1-common-api", version.ref = "jei" }
+jei-forge-api = { module = "mezz.jei:jei-1.20.1-forge-api", version.ref = "jei" }
+jei-forge-impl = { module = "mezz.jei:jei-1.20.1-forge", version.ref = "jei" }
 
-guava = { module = "com.google.guava:guava", version.ref = "guava" }
-pcollections = { module = "org.pcollections:pcollections", version.ref = "pcollections" }
+[bundles]
+jei = ["jei-common-api", "jei-forge-api", "jei-forge-impl"]

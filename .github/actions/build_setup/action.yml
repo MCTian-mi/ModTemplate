@@ -27,6 +27,5 @@ runs:
         add-job-summary: 'always'
         gradle-home-cache-includes: |
           caches
-          caches/retro_futura_gradle
           notifications
           jdks

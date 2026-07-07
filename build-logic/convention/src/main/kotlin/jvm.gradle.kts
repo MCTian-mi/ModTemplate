@@ -20,8 +20,8 @@ tasks.javadoc {
 // Set the toolchain version to decouple the Java we run Gradle with from the Java used to compile and run the mod
 java {
     toolchain {
-        languageVersion.set(JavaLanguageVersion.of(25))
-        // Azul covers the most platforms, crucially including macOS arm64
-        vendor.set(JvmVendorSpec.AZUL)
+        languageVersion.set(JavaLanguageVersion.of(21))
+        // Adoptium is the recommended JDK for vanilla Minecraft
+        vendor.set(JvmVendorSpec.ADOPTIUM)
     }
 }

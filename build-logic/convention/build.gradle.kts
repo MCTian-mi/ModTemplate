@@ -3,15 +3,7 @@ plugins {
 }
 
 repositories {
-    maven {
-        // RetroFuturaGradle
-        name = "GTNH Maven"
-        url = uri("https://nexus.gtnewhorizons.com/repository/public/")
-        mavenContent {
-            includeGroupByRegex("com\\.gtnewhorizons\\..+")
-            includeGroup("com.gtnewhorizons")
-        }
-    }
+    maven("https://maven.neoforged.net/releases")
     gradlePluginPortal()
     mavenCentral()
     mavenLocal()

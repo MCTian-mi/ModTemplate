@@ -22,8 +22,6 @@ tasks.shadowJar {
         shadowImplementation,
     )
 
-    configurations.add(project.configurations.named("shadowDowngrade"))
-
     if (minimizeShadowedDependencies) minimize()
     if (relocateShadowedDependencies) {
         enableAutoRelocation.set(true)

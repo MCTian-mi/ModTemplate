@@ -3,17 +3,17 @@ import net.darkhax.curseforgegradle.TaskPublishCurseForge
 import net.darkhax.curseforgegradle.Constants as CurseForge
 
 plugins {
+    java
     `maven-publish`
-    alias(libs.plugins.retrofuturaGradle)
     alias(libs.plugins.curseforgeGradle)
     alias(libs.plugins.minotaur)
 }
 
 // Shared values used for publishing
-val jarName = modVersion.ifBlank { gitVersion().get() }
+val jarName = effectiveModVersion
 val releaseName: String = versionDisplayFormat
     .replace($$"$MOD_NAME", modName)
-    .replace($$"$VERSION", modVersion)
+    .replace($$"$VERSION", effectiveModVersion)
 
 require(releaseChannel in CurseForge.VALID_RELEASE_TYPES) {
     "Release type invalid! Found \"$releaseChannel\", allowed: ${CurseForge.VALID_RELEASE_TYPES.joinToString { "\"$it\"" }}."
@@ -43,7 +43,7 @@ if (publishToMaven) {
 
                 groupId = artifactGroupId
                 artifactId = mavenArtifactId
-                version = modVersion
+                version = effectiveModVersion
             }
         }
         repositories {
@@ -64,13 +64,13 @@ modrinth {
     token = if (deploymentDebug) "DEBUG_TOKEN" else modrinthApiKey
     projectId = modrinthProjectId
     versionName = releaseName
-    versionNumber = modVersion
+    versionNumber = effectiveModVersion
     versionType = releaseChannel
     gameVersions = listOf(mcVersion)
     loaders = listOf("Forge")
     detectLoaders = false
     debugMode = deploymentDebug
-    uploadFile.set(tasks.reobfJar)
+    uploadFile.set(tasks.jar)
     additionalFiles = listOf(tasks.jar, tasks.named("sourcesJar"))
     changelog = readChangelog()
 
@@ -105,13 +105,13 @@ val publishToCurseForgeTask = tasks.register<TaskPublishCurseForge>("curseforge"
     debugMode = deploymentDebug
     apiToken = if (deploymentDebug) "DEBUG_TOKEN" else curseForgeApiKey
 
-    with(upload(curseForgeProjectId, tasks.reobfJar)) {
+    with(upload(curseForgeProjectId, tasks.jar)) {
         displayName = releaseName
         releaseType = releaseChannel
         changelogType = CurseForge.CHANGELOG_MARKDOWN
         changelog = readChangelog()
         addModLoader("Forge")
-        addJavaVersion("Java 8")
+        addJavaVersion("Java 17")
         addEnvironment(*logicalSide)
         addGameVersion(mcVersion)
         withAdditionalFile(tasks.jar)
@@ -141,25 +141,6 @@ private fun readChangelog(): Provider<String> = provider {
 private fun NamedDependencyContainer.of(slur: String, version: String? = null) {
     return if (version.isNullOrBlank()) project(slur) else version(slur, version)
 }
-
-@Suppress("UnstableApiUsage")
-private fun gitVersion(): Provider<String> = providers.exec {
-    commandLine(
-        "git",
-        "describe",
-        "--tags",
-        "--always",
-        "--first-parent",
-        "--abbrev=7",
-        "--dirty=.dirty",
-        "--match=*",
-    )
-    workingDir(rootDir)
-    isIgnoreExitValue = true
-}.standardOutput.asText
-    .map { it.trim().removePrefix("v") }
-    .filter { it.isNotEmpty() }
-    .orElse("NO-GIT-VERSION")
 
 private object ModRelations {
     val REQ = arrayOf("req", "required", "requiredDependency")
