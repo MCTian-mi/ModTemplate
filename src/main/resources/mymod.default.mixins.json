@@ -1,9 +1,9 @@
 {
-  "package": "@mod_group@.@mixin_package@",
+  "package": "${mod_group}.${mixin_package}",
   "required": true,
-  "refmap": "@mixin_refmap@",
+  "refmap": "${mixin_refmap}",
   "target": "@env(DEFAULT)",
-  "minVersion": "@mixin_min_version@",
+  "minVersion": "${mixin_min_version}",
   "compatibilityLevel": "JAVA_8",
   "mixins": [],
   "server": [],
