@@ -7,6 +7,16 @@ plugins {
     alias(libs.plugins.ideaExt)
 }
 
+dependencies {
+    if (useMixin) {
+        annotationProcessor(variantOf(libs.mixin) { classifier("processor") })
+        compileOnly(libs.mixinExtras.common)
+        annotationProcessor(libs.mixinExtras.common)
+        api(libs.mixinExtras.forge)
+        jarJar(libs.mixinExtras.forge)
+    }
+}
+
 //configurations.configureEach {
 //    resolutionStrategy.eachDependency {
 //        if (requested.group == "org.lwjgl") {
@@ -93,12 +103,10 @@ legacyForge {
 // Automatic constants generation with BuildConfig
 if (generateTags) {
     buildConfig {
-        className("Tags")
         packageName(modGroup)
         useJavaOutput()
         buildConfigField("MOD_ID", modId)
         buildConfigField("MOD_NAME", modName)
-        buildConfigField("MOD_VERSION", effectiveModVersion)
         buildConfigField("MC_VERSION", "[$mcVersion]")
     }
 }
@@ -128,7 +136,7 @@ tasks.processResources {
 
     // Template files for 1.20.1: mods.toml, pack.mcmeta, and mixin configs
     filesMatching(listOf("META-INF/mods.toml", "pack.mcmeta", "*mixin*.json")) {
-        filter<ReplaceTokens>("tokens" to templateTokens)
+        expand(templateTokens)
     }
 }
 

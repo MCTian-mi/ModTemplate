@@ -4,6 +4,8 @@ jspecify = "1.0.0"
 assertj = "3.27.7"
 
 jei = "15.20.0.133"
+jade = "11.13.2+forge"
+jade-addons = "5.5.1+forge"
 
 [libraries]
 annotations = { module = "org.jetbrains:annotations", version.ref = "annotations" }
@@ -13,6 +15,9 @@ assertj-core = { module = "org.assertj:assertj-core", version.ref = "assertj" }
 jei-common-api = { module = "mezz.jei:jei-1.20.1-common-api", version.ref = "jei" }
 jei-forge-api = { module = "mezz.jei:jei-1.20.1-forge-api", version.ref = "jei" }
 jei-forge-impl = { module = "mezz.jei:jei-1.20.1-forge", version.ref = "jei" }
+jade = { module = "maven.modrinth:jade", version.ref = "jade"}
+jade-addons = {module = "maven.modrinth:jade-addons-forge", version.ref = "jade-addons" }
 
 [bundles]
 jei = ["jei-common-api", "jei-forge-api", "jei-forge-impl"]
+jade = ["jade", "jade-addons"]
