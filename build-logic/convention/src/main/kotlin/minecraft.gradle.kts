@@ -13,7 +13,9 @@ dependencies {
         compileOnly(libs.mixinExtras.common)
         annotationProcessor(libs.mixinExtras.common)
         api(libs.mixinExtras.forge)
-        jarJar(libs.mixinExtras.forge)
+        jarJar(libs.mixinExtras.forge) {
+            version { require("[${libs.versions.mixinExtras.get()},)") }
+        }
     }
 }
 
