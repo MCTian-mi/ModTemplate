@@ -1,4 +1,6 @@
 import com.modrinth.minotaur.dependencies.container.NamedDependencyContainer
+import gradle.kotlin.dsl.accessors._a6897065b80eea797e7fd44f27516d65.modrinth
+import gradle.kotlin.dsl.accessors._a6897065b80eea797e7fd44f27516d65.publishing
 import net.darkhax.curseforgegradle.TaskPublishCurseForge
 import net.darkhax.curseforgegradle.Constants as CurseForge
 
@@ -67,7 +69,7 @@ modrinth {
     versionNumber = modVersion
     versionType = releaseChannel
     gameVersions = listOf(mcVersion)
-    loaders = listOf("Forge")
+    loaders = listOf("forge")
     detectLoaders = false
     debugMode = deploymentDebug
     uploadFile.set(tasks.reobfJar)
